@@ -10,10 +10,10 @@ interface ReceiptProps {
     cashier: { name: string };
     items: CartItem[];
     subtotal: number;
-    discount: number;
-    total: number;
-    paid: number;
-    change: number;
+    discount_amount: number;
+    total_amount: number;
+    paid_amount: number;
+    change_amount: number;
     payment_method: string;
   };
 }
@@ -67,23 +67,23 @@ export const ReceiptTemplate = ({ transaction }: ReceiptProps) => {
           <span>Subtotal</span>
           <span>{transaction.subtotal.toLocaleString()}</span>
         </div>
-        {transaction.discount > 0 && (
+        {transaction.discount_amount > 0 && (
           <div className="flex justify-between">
             <span>Diskon Total</span>
-            <span>-{transaction.discount.toLocaleString()}</span>
+            <span>-{transaction.discount_amount.toLocaleString()}</span>
           </div>
         )}
         <div className="flex justify-between font-bold text-xs my-1">
           <span>TOTAL</span>
-          <span>{transaction.total.toLocaleString()}</span>
+          <span>{transaction.total_amount.toLocaleString()}</span>
         </div>
         <div className="flex justify-between">
           <span>Bayar ({transaction.payment_method})</span>
-          <span>{transaction.paid.toLocaleString()}</span>
+          <span>{transaction.paid_amount.toLocaleString()}</span>
         </div>
         <div className="flex justify-between">
           <span>Kembali</span>
-          <span>{transaction.change.toLocaleString()}</span>
+          <span>{transaction.change_amount.toLocaleString()}</span>
         </div>
       </div>
 

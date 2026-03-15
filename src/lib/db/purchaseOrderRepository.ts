@@ -20,6 +20,7 @@ export const purchaseOrderRepository = {
         ...po,
         created_at: new Date(),
         updated_at: new Date(),
+        sync_status: 'pending',
       } as PurchaseOrder);
 
       const poItems = items.map(
@@ -29,6 +30,7 @@ export const purchaseOrderRepository = {
             po_id: poId,
             created_at: new Date(),
             updated_at: new Date(),
+            sync_status: 'pending',
           }) as PurchaseOrderItem,
       );
 
@@ -42,6 +44,7 @@ export const purchaseOrderRepository = {
     return await db.purchase_orders.update(id, {
       status,
       updated_at: new Date(),
+      sync_status: 'pending',
     });
   },
 

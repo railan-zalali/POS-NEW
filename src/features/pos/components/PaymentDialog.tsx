@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { usePOSStore } from '../store/posStore';
 import { useAuthStore } from '@/store/authStore';
 import { transactionRepository } from '@/lib/db/transactionRepository';
+import type { TransactionStatus, PaymentMethod, Customer } from '@/lib/db/schema';
+import type { CartItem } from '../store/posStore';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -40,7 +42,26 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [lastTransaction, setLastTransaction] = useState<any>(null);
+  interface TransactionWithDetails {
+    invoice_number: string;
+    customer_id?: string;
+    cashier_id: string;
+    transaction_date: Date;
+    subtotal: number;
+    discount_amount: number;
+    tax_amount: number;
+    total_amount: number;
+    paid_amount: number;
+    change_amount: number;
+    payment_method: PaymentMethod;
+    status: TransactionStatus;
+    notes?: string;
+    customer?: Customer | null;
+    cashier: { name: string };
+    items: CartItem[];
+  }
+
+  const [lastTransaction, setLastTransaction] = useState<TransactionWithDetails | null>(null);
 
   const componentRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
@@ -76,8 +97,8 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
         total_amount: total,
         paid_amount: paid_amount,
         change_amount: change,
-        payment_method: payment_method,
-        status: 'completed',
+        payment_method: payment_method as PaymentMethod,
+        status: 'completed' as TransactionStatus,
         notes: notes,
       };
 
@@ -95,7 +116,7 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
       }));
 
       // 3. Save to DB
-      await transactionRepository.create(transactionData as any, transactionItems as any);
+      await transactionRepository.create(transactionData, transactionItems);
 
       // 5. Success State
       setLastTransaction({
@@ -104,10 +125,10 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
         cashier: { name: user?.full_name || 'Kasir' },
         items: cart,
         subtotal: getSubtotal(),
-        discount: global_discount,
-        total: total,
-        paid: paid_amount,
-        change: change,
+        discount_amount: global_discount,
+        total_amount: total,
+        paid_amount: paid_amount,
+        change_amount: change,
       });
 
       setIsSuccess(true);
@@ -188,7 +209,7 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
             <div className="flex justify-center py-4">
               <div className="hidden">
                 <div ref={componentRef}>
-                  <ReceiptTemplate transaction={lastTransaction} />
+                  {lastTransaction && <ReceiptTemplate transaction={lastTransaction} />}
                 </div>
               </div>
               <Button

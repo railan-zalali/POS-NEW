@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -57,7 +57,7 @@ export default function ProductBatchPage() {
   const suppliers = useLiveQuery(() => supplierRepository.getAll()) || [];
 
   const form = useForm<BatchProductFormValues>({
-    resolver: zodResolver(batchProductSchema) as any,
+    resolver: zodResolver(batchProductSchema) as unknown as Resolver<BatchProductFormValues>,
     defaultValues: {
       products: [
         {

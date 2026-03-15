@@ -15,6 +15,7 @@ export const customerRepository = {
       ...customer,
       created_at: new Date(),
       updated_at: new Date(),
+      sync_status: 'pending',
     } as Customer);
   },
 
@@ -22,6 +23,7 @@ export const customerRepository = {
     return await db.customers.update(id, {
       ...updates,
       updated_at: new Date(),
+      sync_status: 'pending',
     });
   },
 

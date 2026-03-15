@@ -11,6 +11,7 @@ export const stockRepository = {
       ...stock,
       created_at: new Date(),
       updated_at: new Date(),
+      sync_status: 'pending',
     } as ProductStock);
   },
 
@@ -18,6 +19,7 @@ export const stockRepository = {
     return await db.product_stocks.update(id, {
       quantity,
       updated_at: new Date(),
+      sync_status: 'pending',
     });
   },
 };

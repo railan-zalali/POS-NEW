@@ -35,8 +35,14 @@ export default function PurchaseReportPage() {
     });
   });
 
+  interface SupplierSummaryItem {
+    name: string;
+    total: number;
+    count: number;
+  }
+
   // Calculate summary by Supplier
-  const supplierSummary = filteredPOs.reduce((acc: any[], po) => {
+  const supplierSummary = filteredPOs.reduce((acc: SupplierSummaryItem[], po) => {
     const supplierName = suppliers.find((s) => s.id === po.supplier_id)?.name || 'Unknown';
     const existing = acc.find((item) => item.name === supplierName);
     if (existing) {
@@ -66,45 +72,74 @@ export default function PurchaseReportPage() {
   };
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-8 p-6 bg-slate-50/50 min-h-screen">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-primary">Laporan Pembelian</h1>
-        <Button onClick={handleExport} variant="outline">
+        <div>
+          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-1">
+            Laporan Pembelian
+          </h1>
+          <p className="text-slate-500 text-sm">
+            Analisis pengadaan stok dan pengeluaran ke supplier.
+          </p>
+        </div>
+        <Button
+          onClick={handleExport}
+          className="rounded-full shadow-lg shadow-emerald-500/10"
+          variant="outline"
+        >
           <Download className="mr-2 h-4 w-4" /> Export Excel
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-4 flex gap-4 items-end">
+      <Card className="border-none shadow-md bg-white/80 backdrop-blur-sm">
+        <CardContent className="p-4 flex flex-wrap gap-6 items-end">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Dari Tanggal</label>
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Periode Awal
+            </label>
+            <Input
+              type="date"
+              className="bg-white border-none shadow-sm h-10 w-44"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Sampai Tanggal</label>
-            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Periode Akhir
+            </label>
+            <Input
+              type="date"
+              className="bg-white border-none shadow-sm h-10 w-44"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Pembelian</CardTitle>
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card className="border-none shadow-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white md:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-100/80">
+              Total Pengeluaran
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">
-              Rp {totalPurchase.toLocaleString('id-ID')}
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">{filteredPOs.length} Transaksi PO</p>
+            <div className="text-3xl font-bold">Rp {totalPurchase.toLocaleString('id-ID')}</div>
+            <p className="text-xs text-emerald-100/70 mt-1">
+              {filteredPOs.length} Transaksi PO Disetujui
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Pembelian per Supplier</CardTitle>
+        <Card className="border-none shadow-xl bg-white md:col-span-2 overflow-hidden">
+          <CardHeader className="bg-slate-50/50 border-b py-3 px-6">
+            <CardTitle className="text-sm font-bold text-slate-600">
+              Alokasi Pembelian per Supplier
+            </CardTitle>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[200px] p-6">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={supplierSummary} layout="vertical" margin={{ left: 20 }}>
                 <XAxis type="number" hide />
@@ -112,63 +147,95 @@ export default function PurchaseReportPage() {
                   dataKey="name"
                   type="category"
                   width={100}
-                  fontSize={12}
+                  fontSize={10}
+                  fontWeight="bold"
                   tickLine={false}
                   axisLine={false}
                 />
                 <Tooltip
-                  formatter={(value: any) => [
-                    `Rp ${Number(value).toLocaleString('id-ID')}`,
+                  formatter={(value: unknown) => [
+                    `Rp ${Number(value || 0).toLocaleString('id-ID')}`,
                     'Total',
                   ]}
-                  cursor={{ fill: 'transparent' }}
+                  contentStyle={{
+                    borderRadius: '12px',
+                    border: 'none',
+                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                  }}
+                  cursor={{ fill: 'rgba(0,0,0,0.02)' }}
                 />
-                <Bar dataKey="total" fill="#52B788" radius={[0, 4, 4, 0]} barSize={20} />
+                <Bar dataKey="total" fill="#10b981" radius={[0, 10, 10, 0]} barSize={24} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Detail Pembelian</CardTitle>
+      <Card className="border-none shadow-xl bg-white/80 backdrop-blur-sm overflow-hidden">
+        <CardHeader className="border-b bg-slate-50/50">
+          <CardTitle className="text-xl font-bold">Detail Transaksi Pengadaan</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader className="bg-slate-50/50">
+              <TableRow>
+                <TableHead className="px-6 py-4 text-xs font-black uppercase text-slate-400">
+                  No. PO
+                </TableHead>
+                <TableHead className="text-xs font-black uppercase text-slate-400">
+                  Tanggal
+                </TableHead>
+                <TableHead className="text-xs font-black uppercase text-slate-400">
+                  Supplier
+                </TableHead>
+                <TableHead className="text-center text-xs font-black uppercase text-slate-400">
+                  Status
+                </TableHead>
+                <TableHead className="text-right px-6 py-4 text-xs font-black uppercase text-slate-400">
+                  Total Nominal
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPOs.length === 0 ? (
                 <TableRow>
-                  <TableHead>No. PO</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
+                  <TableCell colSpan={5} className="h-32 text-center text-slate-400">
+                    Tidak ada data pembelian pada periode ini.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPOs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      Tidak ada data pembelian pada periode ini.
+              ) : (
+                filteredPOs.map((po) => (
+                  <TableRow key={po.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <TableCell className="px-6 py-4 font-mono text-xs font-bold text-slate-500">
+                      {po.po_number}
+                    </TableCell>
+                    <TableCell className="font-medium text-slate-600">
+                      {format(po.order_date, 'dd MMM yyyy', { locale: id })}
+                    </TableCell>
+                    <TableCell className="font-bold text-slate-800">
+                      {suppliers.find((s) => s.id === po.supplier_id)?.name}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                          po.status === 'received'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : po.status === 'partial_received'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        {po.status.replace('_', ' ')}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right px-6 py-4 font-black text-slate-900">
+                      Rp {po.total_amount.toLocaleString('id-ID')}
                     </TableCell>
                   </TableRow>
-                ) : (
-                  filteredPOs.map((po) => (
-                    <TableRow key={po.id}>
-                      <TableCell className="font-medium">{po.po_number}</TableCell>
-                      <TableCell>{format(po.order_date, 'dd MMM yyyy', { locale: id })}</TableCell>
-                      <TableCell>{suppliers.find((s) => s.id === po.supplier_id)?.name}</TableCell>
-                      <TableCell className="capitalize">{po.status}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        Rp {po.total_amount.toLocaleString('id-ID')}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

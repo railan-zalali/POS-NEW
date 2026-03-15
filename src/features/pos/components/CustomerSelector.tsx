@@ -38,6 +38,7 @@ export function CustomerSelector() {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
+            id="customer-selector"
             variant="outline"
             className="w-full justify-start text-left font-normal"
             role="combobox"

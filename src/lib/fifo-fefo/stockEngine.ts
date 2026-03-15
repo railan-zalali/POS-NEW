@@ -15,28 +15,39 @@ export const stockEngine = {
    * 1. If batch has expire_date, use FEFO (sort by expire_date ASC).
    * 2. If no expire_date, use FIFO (sort by received_date ASC).
    * 3. Filter out batches with 0 quantity.
+   *
+   * NOTE: We pull all batches for the PRODUCT regardless of unit,
+   * because we track quantity in BASE UNITS internally in the stock engine.
    */
-  async getAvailableBatches(productId: string, unitId: string): Promise<ProductStock[]> {
-    const stocks = await db.product_stocks
-      .where('[product_id+unit_id]')
-      .equals([productId, unitId])
-      .toArray();
+  async getAvailableBatches(productId: string): Promise<ProductStock[]> {
+    const stocks = await db.product_stocks.where('product_id').equals(productId).toArray();
 
     return stocks
       .filter((stock) => stock.quantity > 0)
       .sort((a, b) => {
         // 1. Priority: Expiration Date (FEFO)
         if (a.expire_date && b.expire_date) {
-          return a.expire_date.getTime() - b.expire_date.getTime();
+          const timeA = new Date(a.expire_date).getTime();
+          const timeB = new Date(b.expire_date).getTime();
+          return timeA - timeB;
         }
-        // If one has expire date and other doesn't, the one with expire date comes first?
-        // Usually items with expiration are prioritized over non-expiring ones if mixed (rare case).
         if (a.expire_date && !b.expire_date) return -1;
         if (!a.expire_date && b.expire_date) return 1;
 
         // 2. Priority: Received Date (FIFO)
-        return a.received_date.getTime() - b.received_date.getTime();
+        const timeA = new Date(a.received_date).getTime();
+        const timeB = new Date(b.received_date).getTime();
+        return timeA - timeB;
       });
+  },
+
+  /**
+   * Helper to get conversion factor and base unit info
+   */
+  async getUnitInfo(unitId: string) {
+    const unit = await db.product_units.get(unitId);
+    if (!unit) throw new Error(`Unit ${unitId} not found`);
+    return unit;
   },
 
   /**
@@ -46,11 +57,14 @@ export const stockEngine = {
   async allocateStock(
     productId: string,
     unitId: string,
-    qtyRequired: number,
+    qtyOrdered: number,
   ): Promise<StockAllocation[]> {
-    const batches = await this.getAvailableBatches(productId, unitId);
+    const unit = await this.getUnitInfo(unitId);
+    const qtyInBaseUnit = qtyOrdered * unit.conversion_factor;
+
+    const batches = await this.getAvailableBatches(productId);
     const allocation: StockAllocation[] = [];
-    let qtyRemaining = qtyRequired;
+    let qtyRemaining = qtyInBaseUnit;
 
     for (const batch of batches) {
       if (qtyRemaining <= 0) break;
@@ -67,7 +81,8 @@ export const stockEngine = {
     }
 
     if (qtyRemaining > 0) {
-      throw new Error(`Stok tidak mencukupi. Kurang ${qtyRemaining} item.`);
+      const neededInOriginalUnit = qtyRemaining / unit.conversion_factor;
+      throw new Error(`Stok tidak mencukupi. Kurang ${neededInOriginalUnit} ${unit.unit_name}.`);
     }
 
     return allocation;
@@ -82,14 +97,19 @@ export const stockEngine = {
   },
 
   /**
-   * Get total available stock for a product unit.
+   * Get total available stock for a product in base units.
    */
-  async getTotalStock(productId: string, unitId: string): Promise<number> {
-    const batches = await db.product_stocks
-      .where('[product_id+unit_id]')
-      .equals([productId, unitId])
-      .toArray();
-
+  async getTotalStock(productId: string): Promise<number> {
+    const batches = await db.product_stocks.where('product_id').equals(productId).toArray();
     return batches.reduce((sum, batch) => sum + batch.quantity, 0);
+  },
+
+  /**
+   * Get total available stock in a specific unit.
+   */
+  async getTotalStockFormatted(productId: string, unitId: string): Promise<number> {
+    const unit = await this.getUnitInfo(unitId);
+    const totalBase = await this.getTotalStock(productId);
+    return totalBase / unit.conversion_factor;
   },
 };

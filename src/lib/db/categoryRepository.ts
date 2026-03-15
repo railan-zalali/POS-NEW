@@ -15,6 +15,7 @@ export const categoryRepository = {
       ...category,
       created_at: new Date(),
       updated_at: new Date(),
+      sync_status: 'pending',
     } as Category);
   },
 
@@ -22,6 +23,7 @@ export const categoryRepository = {
     return await db.categories.update(id, {
       ...updates,
       updated_at: new Date(),
+      sync_status: 'pending',
     });
   },
 

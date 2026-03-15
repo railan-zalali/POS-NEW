@@ -36,9 +36,10 @@ export default function CategoryPage() {
 
   const categories = useLiveQuery(() => categoryRepository.getAll()) || [];
 
-  const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(search.toLowerCase()) ||
-    category.code.toLowerCase().includes(search.toLowerCase())
+  const filteredCategories = categories.filter(
+    (category) =>
+      category.name.toLowerCase().includes(search.toLowerCase()) ||
+      category.code.toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleDelete = async () => {
@@ -46,10 +47,10 @@ export default function CategoryPage() {
     try {
       await categoryRepository.delete(deleteId);
       toast({ title: 'Berhasil', description: 'Kategori berhasil dihapus' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Gagal',
-        description: error.message || 'Gagal menghapus kategori',
+        description: error instanceof Error ? error.message : 'Gagal menghapus kategori',
         variant: 'destructive',
       });
     } finally {
@@ -72,7 +73,12 @@ export default function CategoryPage() {
             Kelola kategori untuk pengelompokan produk yang lebih baik
           </p>
         </div>
-        <Button onClick={() => { setEditingCategory(null); setIsDialogOpen(true); }}>
+        <Button
+          onClick={() => {
+            setEditingCategory(null);
+            setIsDialogOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" /> Tambah Kategori
         </Button>
       </div>
@@ -179,7 +185,10 @@ export default function CategoryPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -24,7 +24,6 @@ export const transactionRepository = {
       async () => {
         // 1. Process Items (FIFO Allocation & Stock Deduction)
         const processedItems: Omit<SalesTransactionItem, 'id' | 'transaction_id'>[] = [];
-        let totalCOGS = 0;
 
         for (const item of items) {
           // Calculate allocation
@@ -35,8 +34,6 @@ export const transactionRepository = {
           );
           const itemCOGS = stockEngine.calculateCOGS(allocation);
           const batchIds = allocation.map((a) => a.batchId);
-
-          totalCOGS += itemCOGS;
 
           // Deduct Stock
           for (const alloc of allocation) {
@@ -52,7 +49,7 @@ export const transactionRepository = {
                 product_unit_id: item.product_unit_id,
                 movement_type: 'sale',
                 reference_id: '', // Will update later with transaction ID or use placeholder
-                reference_type: 'sale',
+                reference_type: 'transaction',
                 batch_number: stock.batch_number,
                 quantity_before: stock.quantity,
                 quantity_change: -alloc.quantity,
@@ -60,7 +57,7 @@ export const transactionRepository = {
                 expire_date: stock.expire_date,
                 created_by: transaction.cashier_id,
                 created_at: new Date(),
-              } as any); // Type cast until we strictly define StockMovement interface in schema
+              });
             }
           }
 
@@ -76,6 +73,7 @@ export const transactionRepository = {
           ...transaction,
           created_at: new Date(),
           updated_at: new Date(),
+          sync_status: 'pending',
         } as SalesTransaction);
 
         // 3. Save Transaction Items
@@ -86,14 +84,11 @@ export const transactionRepository = {
               transaction_id: transactionId,
               created_at: new Date(),
               updated_at: new Date(),
+              sync_status: 'pending',
             }) as SalesTransactionItem,
         );
 
         await db.sales_transaction_items.bulkAdd(finalItems);
-
-        // 4. Update reference_id in movements (Optional, complicated in Dexie transaction if not bulk)
-        // Ideally we do this if we really need strong FK. For local DB, maybe skip or do separate update.
-        // Let's stick to the current flow.
 
         return transactionId;
       },
@@ -104,6 +99,7 @@ export const transactionRepository = {
     return await db.sales_transactions.update(id, {
       status,
       updated_at: new Date(),
+      sync_status: 'pending',
     });
   },
 };

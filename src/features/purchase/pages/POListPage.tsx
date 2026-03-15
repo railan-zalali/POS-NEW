@@ -3,8 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { purchaseOrderRepository } from '@/lib/db/purchaseOrderRepository';
 import { supplierRepository } from '@/lib/db/supplierRepository';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -13,140 +12,153 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Eye } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plus, Eye, FileText, Trash2, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import type { PurchaseOrder } from '@/lib/db/schema';
+import { POFormDialog } from '../components/POFormDialog';
+import { useToast } from '@/hooks/use-toast';
 
-export default function POListPage() {
+export default function PurchaseOrderPage() {
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const purchaseOrders = useLiveQuery(() => purchaseOrderRepository.getAll()) || [];
+  const pos = useLiveQuery(() => purchaseOrderRepository.getAll()) || [];
   const suppliers = useLiveQuery(() => supplierRepository.getAll()) || [];
 
-  const getSupplierName = (id: string) => {
-    return suppliers.find((s) => s.id === id)?.name || 'Unknown Supplier';
-  };
+  const filteredPOs = pos.filter((po) => {
+    const supplier = suppliers.find((s) => s.id === po.supplier_id);
+    const searchLower = search.toLowerCase();
+    return (
+      po.po_number.toLowerCase().includes(searchLower) ||
+      supplier?.name.toLowerCase().includes(searchLower)
+    );
+  });
 
-  const filteredPOs = purchaseOrders.filter(
-    (po) =>
-      po.po_number.toLowerCase().includes(search.toLowerCase()) ||
-      getSupplierName(po.supplier_id).toLowerCase().includes(search.toLowerCase()),
-  );
-
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'draft':
-        return 'secondary';
+        return <Badge variant="secondary">Draft</Badge>;
       case 'sent':
-        return 'default'; // blue-ish usually
+        return (
+          <Badge variant="default" className="bg-blue-500">
+            Dikirim
+          </Badge>
+        );
       case 'partial_received':
-        return 'warning';
+        return (
+          <Badge variant="outline" className="text-orange-500 border-orange-500">
+            Parsial
+          </Badge>
+        );
       case 'received':
-        return 'success'; // green
+        return (
+          <Badge variant="default" className="bg-green-500">
+            Diterima
+          </Badge>
+        );
       case 'cancelled':
-        return 'destructive';
+        return <Badge variant="destructive">Dibatalkan</Badge>;
       default:
-        return 'outline';
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
-  const translateStatus = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return 'Draft';
-      case 'sent':
-        return 'Terkirim';
-      case 'partial_received':
-        return 'Diterima Sebagian';
-      case 'received':
-        return 'Diterima';
-      case 'cancelled':
-        return 'Dibatalkan';
-      default:
-        return status;
+  const handleDelete = async (poId: string) => {
+    if (confirm('Apakah Anda yakin ingin menghapus PO ini?')) {
+      try {
+        await purchaseOrderRepository.delete(poId);
+        toast({ title: 'Berhasil', description: 'Purchase Order telah dihapus.' });
+      } catch (_error) {
+        toast({ title: 'Gagal', description: 'Gagal menghapus PO.', variant: 'destructive' });
+      }
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary">Purchase Order</h1>
-          <p className="text-muted-foreground">Kelola pembelian barang ke supplier</p>
+          <h1 className="text-2xl font-bold">Purchase Order</h1>
+          <p className="text-muted-foreground text-sm">Kelola pesanan barang ke supplier.</p>
         </div>
-        <Button onClick={() => navigate('/purchase/create')}>
-          <Plus className="mr-2 h-4 w-4" /> Buat PO Baru
+        <Button onClick={() => setIsFormOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          PO Baru
         </Button>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xl font-semibold">Riwayat Pembelian</CardTitle>
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Cari No. PO atau Supplier..."
-              className="pl-8"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[180px]">No. PO</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPOs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      Belum ada data Purchase Order.
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari nomor PO atau supplier..."
+            className="pl-8"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="border rounded-lg bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>No. PO</TableHead>
+              <TableHead>Tanggal</TableHead>
+              <TableHead>Supplier</TableHead>
+              <TableHead>Total Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredPOs.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  Tidak ada Purchase Order ditemukan.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredPOs.map((po) => {
+                const supplier = suppliers.find((s) => s.id === po.supplier_id);
+                return (
+                  <TableRow key={po.id}>
+                    <TableCell className="font-medium">{po.po_number}</TableCell>
+                    <TableCell>
+                      {format(new Date(po.order_date), 'dd MMM yyyy', { locale: id })}
                     </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredPOs.map((po: PurchaseOrder) => (
-                    <TableRow key={po.id}>
-                      <TableCell className="font-medium">{po.po_number}</TableCell>
-                      <TableCell>{format(po.order_date, 'dd MMM yyyy', { locale: id })}</TableCell>
-                      <TableCell>{getSupplierName(po.supplier_id)}</TableCell>
-                      <TableCell>Rp {po.total_amount.toLocaleString('id-ID')}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusColor(po.status) as any}>
-                          {translateStatus(po.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
+                    <TableCell>{supplier?.name || 'Unknown'}</TableCell>
+                    <TableCell>Rp {po.total_amount.toLocaleString('id-ID')}</TableCell>
+                    <TableCell>{getStatusBadge(po.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" title="Lihat Detail">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Cetak PO">
+                          <FileText className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => navigate(`/purchase/${po.id}`)}
-                          title="Lihat Detail"
+                          className="text-destructive"
+                          onClick={() => handleDelete(po.id!)}
                         >
-                          <Eye className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <POFormDialog open={isFormOpen} onOpenChange={setIsFormOpen} />
     </div>
   );
 }

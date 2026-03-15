@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -42,19 +42,24 @@ const productSchema = z.object({
   name: z.string().min(1, 'Nama produk wajib diisi'),
   description: z.string().optional(),
   category_id: z.string().min(1, 'Kategori wajib dipilih'),
-  supplier_ids: z.array(z.string()).default([]),
-  image: z.any().optional(), // Handle Blob or string
-  is_active: z.boolean().default(true),
+  supplier_ids: z.array(z.string()),
+  image: z
+    .union([z.instanceof(Blob), z.string()])
+    .nullable()
+    .optional(), // Handle Blob or string or null
+  is_active: z.boolean(),
   units: z
     .array(
       z.object({
         unit_name: z.string().min(1, 'Nama satuan wajib diisi'),
         conversion_factor: z.coerce.number().min(1, 'Faktor konversi minimal 1'),
-        is_base_unit: z.boolean().default(false),
+        is_base_unit: z.boolean(),
         purchase_price: z.coerce.number().min(0),
         selling_price: z.coerce.number().min(0),
         barcode: z.string().optional(),
         initial_stock: z.coerce.number().min(0).optional(),
+        batch_number: z.string().optional(),
+        expire_date: z.string().optional(),
       }),
     )
     .min(1, 'Minimal satu satuan produk wajib diisi'),
@@ -81,7 +86,7 @@ export function ProductFormDialog({
   const categories = useLiveQuery(() => categoryRepository.getAll()) || [];
 
   const form = useForm<ProductFormValues>({
-    resolver: zodResolver(productSchema) as any,
+    resolver: zodResolver(productSchema) as unknown as Resolver<ProductFormValues>,
     defaultValues: {
       code: '',
       name: '',
@@ -98,6 +103,8 @@ export function ProductFormDialog({
           selling_price: 0,
           barcode: '',
           initial_stock: 0,
+          batch_number: '',
+          expire_date: '',
         },
       ],
     },
@@ -107,7 +114,6 @@ export function ProductFormDialog({
     control: form.control,
     name: 'units',
   });
-
   useEffect(() => {
     if (product) {
       form.reset({
@@ -135,6 +141,8 @@ export function ProductFormDialog({
             selling_price: 0,
             barcode: '',
             initial_stock: 0,
+            batch_number: '',
+            expire_date: '',
           },
         ],
       });
@@ -171,6 +179,8 @@ export function ProductFormDialog({
             unitIndex: index,
             quantity: u.initial_stock || 0,
             purchasePrice: u.purchase_price,
+            batch_number: u.batch_number || undefined,
+            expire_date: u.expire_date ? new Date(u.expire_date) : undefined,
           }))
           .filter((s) => s.quantity > 0);
 
@@ -224,7 +234,7 @@ export function ProductFormDialog({
               <div className="space-y-2">
                 <Label htmlFor="image">Foto Produk</Label>
                 <ImageUpload
-                  value={form.watch('image')}
+                  value={form.watch('image') ?? undefined}
                   onChange={(file) => form.setValue('image', file)}
                 />
               </div>
@@ -292,6 +302,8 @@ export function ProductFormDialog({
                     selling_price: 0,
                     barcode: '',
                     initial_stock: 0,
+                    batch_number: '',
+                    expire_date: '',
                   })
                 }
               >
@@ -309,6 +321,8 @@ export function ProductFormDialog({
                     <TableHead className="w-[100px]">Harga Beli</TableHead>
                     <TableHead className="w-[100px]">Harga Jual</TableHead>
                     <TableHead className="w-[100px]">Stok Awal</TableHead>
+                    <TableHead className="w-[100px]">Batch No</TableHead>
+                    <TableHead className="w-[120px]">Kadaluarsa</TableHead>
                     <TableHead className="w-[100px]">Barcode</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
@@ -366,6 +380,22 @@ export function ProductFormDialog({
                           type="number"
                           {...form.register(`units.${index}.initial_stock`)}
                           className="h-8"
+                          disabled={!!product} // Disable if editing existing
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          {...form.register(`units.${index}.batch_number`)}
+                          className="h-8 text-xs"
+                          placeholder="Batch"
+                          disabled={!!product}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          {...form.register(`units.${index}.expire_date`)}
+                          className="h-8 text-xs"
                           disabled={!!product}
                         />
                       </TableCell>

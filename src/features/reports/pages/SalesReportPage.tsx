@@ -21,9 +21,24 @@ import {
 } from '@/components/ui/select';
 import { format, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, Calendar as CalendarIcon } from 'lucide-react';
+import {
+  Download,
+  Calendar as CalendarIcon,
+  TrendingUp,
+  CreditCard,
+  Wallet,
+  Banknote,
+} from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 
 export default function SalesReportPage() {
   const [dateRange, setDateRange] = useState('today');
@@ -53,7 +68,7 @@ export default function SalesReportPage() {
   );
 
   // Prepare chart data (Group by date)
-  const chartData = filteredTransactions.reduce((acc: any[], tx) => {
+  const chartData = filteredTransactions.reduce((acc: { date: string; total: number }[], tx) => {
     const dateStr = format(tx.transaction_date, 'dd/MM');
     const existing = acc.find((item) => item.date === dateStr);
     if (existing) {
@@ -104,29 +119,33 @@ export default function SalesReportPage() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4 flex flex-wrap gap-4 items-end">
-          <div className="space-y-2 min-w-[150px]">
-            <label className="text-sm font-medium">Periode</label>
+      <Card className="border-none shadow-md overflow-hidden bg-white/80 backdrop-blur-sm">
+        <CardContent className="p-6 flex flex-wrap gap-6 items-end">
+          <div className="space-y-2 min-w-[200px]">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Periode Cepat
+            </label>
             <Select value={dateRange} onValueChange={handleRangeChange}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-slate-50 border-none shadow-none focus:ring-1">
                 <SelectValue placeholder="Pilih Periode" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="today">Hari Ini</SelectItem>
                 <SelectItem value="week">7 Hari Terakhir</SelectItem>
                 <SelectItem value="month">30 Hari Terakhir</SelectItem>
-                <SelectItem value="custom">Custom</SelectItem>
+                <SelectItem value="custom">Kustom</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Dari Tanggal</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Dari Tanggal
+            </label>
             <div className="relative">
-              <CalendarIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <CalendarIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
               <Input
                 type="date"
-                className="pl-9"
+                className="pl-9 bg-slate-50 border-none shadow-none focus:ring-1"
                 value={startDate}
                 onChange={(e) => {
                   setStartDate(e.target.value);
@@ -136,12 +155,14 @@ export default function SalesReportPage() {
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Sampai Tanggal</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Sampai Tanggal
+            </label>
             <div className="relative">
-              <CalendarIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <CalendarIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
               <Input
                 type="date"
-                className="pl-9"
+                className="pl-9 bg-slate-50 border-none shadow-none focus:ring-1"
                 value={endDate}
                 onChange={(e) => {
                   setEndDate(e.target.value);
@@ -154,127 +175,203 @@ export default function SalesReportPage() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-none shadow-xl bg-gradient-to-br from-slate-800 to-slate-900 text-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Penjualan</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-300">Total Penjualan</CardTitle>
+            <TrendingUp className="h-4 w-4 text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold">
               Rp {summary.totalSales.toLocaleString('id-ID')}
             </div>
-            <p className="text-xs text-muted-foreground">{summary.totalTransactions} transaksi</p>
+            <p className="text-xs text-slate-400 mt-1">
+              {summary.totalTransactions} transaksi berhasil
+            </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none shadow-xl bg-white group hover:scale-[1.02] transition-transform">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tunai (Cash)</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-500">Tunai (Cash)</CardTitle>
+            <Banknote className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Rp {summary.totalCash.toLocaleString('id-ID')}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Transfer</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              Rp {summary.totalTransfer.toLocaleString('id-ID')}
+            <div className="text-2xl font-bold text-slate-900">
+              Rp {summary.totalCash.toLocaleString('id-ID')}
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2">
+              <div
+                className="bg-emerald-500 h-1.5 rounded-full"
+                style={{
+                  width: `${summary.totalSales > 0 ? (summary.totalCash / summary.totalSales) * 100 : 0}%`,
+                }}
+              ></div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none shadow-xl bg-white group hover:scale-[1.02] transition-transform">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kredit (Hutang)</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-500">Transfer</CardTitle>
+            <Wallet className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-900">
+              Rp {summary.totalTransfer.toLocaleString('id-ID')}
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2">
+              <div
+                className="bg-blue-500 h-1.5 rounded-full"
+                style={{
+                  width: `${summary.totalSales > 0 ? (summary.totalTransfer / summary.totalSales) * 100 : 0}%`,
+                }}
+              ></div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-xl bg-white group hover:scale-[1.02] transition-transform">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-500">Kredit (Hutang)</CardTitle>
+            <CreditCard className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">
               Rp {summary.totalCredit.toLocaleString('id-ID')}
             </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2">
+              <div
+                className="bg-orange-500 h-1.5 rounded-full"
+                style={{
+                  width: `${summary.totalSales > 0 ? (summary.totalCredit / summary.totalSales) * 100 : 0}%`,
+                }}
+              ></div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Grafik Penjualan</CardTitle>
-        </CardHeader>
-        <CardContent className="pl-2">
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <XAxis
-                  dataKey="date"
-                  stroke="#888888"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="#888888"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `Rp ${value.toLocaleString()}`}
-                />
-                <Tooltip
-                  formatter={(value: any) => [
-                    `Rp ${Number(value).toLocaleString('id-ID')}`,
-                    'Total',
-                  ]}
-                  labelStyle={{ color: 'black' }}
-                />
-                <Bar dataKey="total" fill="#2D6A4F" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 md:grid-cols-7">
+        {/* Chart */}
+        <Card className="col-span-4 border-none shadow-xl bg-white overflow-hidden">
+          <CardHeader className="border-b bg-slate-50/50">
+            <CardTitle className="text-lg">Grafik Penjualan</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0f172a" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#0f172a" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#94a3b8"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    dy={10}
+                  />
+                  <YAxis
+                    stroke="#94a3b8"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) =>
+                      `Rp ${value >= 1000000 ? (value / 1000000).toFixed(1) + 'M' : (value / 1000).toFixed(0) + 'k'}`
+                    }
+                  />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white border-none shadow-2xl rounded-lg p-3 text-xs">
+                            <p className="font-bold text-slate-900 mb-1">{label}</p>
+                            <p className="text-slate-600">
+                              Total:{' '}
+                              <span className="font-bold text-primary">
+                                Rp {Number(payload[0].value).toLocaleString('id-ID')}
+                              </span>
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#0f172a"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorSales)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Transaction Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Detail Transaksi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>No. Invoice</TableHead>
-                  <TableHead>Tanggal & Jam</TableHead>
-                  <TableHead>Metode</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTransactions.length === 0 ? (
+        {/* Transaction Table */}
+        <Card className="col-span-3 border-none shadow-xl bg-white overflow-hidden">
+          <CardHeader className="border-b bg-slate-50/50">
+            <CardTitle className="text-lg">Riwayat Transaksi</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="max-h-[400px] overflow-y-auto">
+              <Table>
+                <TableHeader className="bg-slate-50/50">
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
-                      Tidak ada data transaksi pada periode ini.
-                    </TableCell>
+                    <TableHead className="text-xs uppercase tracking-wider font-bold">
+                      Invoice
+                    </TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-bold">
+                      Waktu
+                    </TableHead>
+                    <TableHead className="text-right text-xs uppercase tracking-wider font-bold">
+                      Total
+                    </TableHead>
                   </TableRow>
-                ) : (
-                  filteredTransactions.map((tx) => (
-                    <TableRow key={tx.id}>
-                      <TableCell className="font-medium">{tx.invoice_number}</TableCell>
-                      <TableCell>
-                        {format(tx.transaction_date, 'dd MMM yyyy HH:mm', { locale: id })}
-                      </TableCell>
-                      <TableCell className="capitalize">{tx.payment_method}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        Rp {tx.total_amount.toLocaleString('id-ID')}
+                </TableHeader>
+                <TableBody>
+                  {filteredTransactions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="h-32 text-center text-slate-400">
+                        Tidak ada transaksi.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                  ) : (
+                    filteredTransactions.map((tx) => (
+                      <TableRow
+                        key={tx.id}
+                        className="hover:bg-slate-50/50 transition-colors group"
+                      >
+                        <TableCell>
+                          <div className="font-bold text-slate-800 group-hover:text-primary transition-colors">
+                            {tx.invoice_number}
+                          </div>
+                          <div className="text-[10px] uppercase font-bold text-slate-400">
+                            {tx.payment_method}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-slate-500 text-xs text-nowrap">
+                          {format(tx.transaction_date, 'dd MMM, HH:mm', { locale: id })}
+                        </TableCell>
+                        <TableCell className="text-right font-black text-slate-900">
+                          Rp {tx.total_amount.toLocaleString('id-ID')}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

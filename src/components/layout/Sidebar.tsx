@@ -13,56 +13,50 @@ import {
   Archive,
   ClipboardList,
 } from 'lucide-react';
+import { SyncStatusIndicator } from './SyncStatusIndicator';
 
 export function Sidebar() {
   const { logout } = useAuthStore();
   const location = useLocation();
 
   const navItems = [
-    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/pos', icon: ShoppingCart, label: 'Kasir (POS)' },
+    { to: '/app', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/app/pos', icon: ShoppingCart, label: 'Kasir (POS)' },
     {
-      to: '/products',
+      to: '/app/products',
       icon: Package,
       label: 'Produk',
       subItems: [
-        { to: '/products', label: 'Daftar Produk' },
-        { to: '/products/batch', label: 'Input Massal' },
-        { to: '/products/categories', label: 'Kategori' },
+        { to: '/app/products', label: 'Daftar Produk' },
+        { to: '/app/products/batch', label: 'Input Massal' },
+        { to: '/app/products/categories', label: 'Kategori' },
       ],
     },
     {
-      to: '/purchase',
+      to: '/app/purchase',
       icon: ClipboardList,
       label: 'Pembelian',
       subItems: [
-        { to: '/purchase', label: 'Riwayat PO' },
-        { to: '/purchase/create', label: 'Buat PO Baru' },
+        { to: '/app/purchase', label: 'Purchase Order' },
+        { to: '/app/purchase/receipts', label: 'Penerimaan Barang' },
       ],
     },
-    { to: '/stock', icon: Archive, label: 'Stok' },
-    { to: '/customers', icon: Users, label: 'Pelanggan' },
-    { to: '/suppliers', icon: Truck, label: 'Supplier' },
+    { to: '/app/stock', icon: Archive, label: 'Stok' },
+    { to: '/app/customers', icon: Users, label: 'Pelanggan' },
+    { to: '/app/suppliers', icon: Truck, label: 'Supplier' },
     {
-      to: '/reports',
+      to: '/app/reports',
       icon: BarChart3,
       label: 'Laporan',
       subItems: [
-        { to: '/reports', label: 'Penjualan' },
-        { to: '/reports/profit-loss', label: 'Laba Rugi' },
-        { to: '/reports/purchase', label: 'Pembelian' },
-        { to: '/reports/products-customers', label: 'Produk & Pelanggan' },
+        { to: '/app/reports', label: 'Penjualan' },
+        { to: '/app/reports/profit-loss', label: 'Laba Rugi' },
+        { to: '/app/reports/purchase', label: 'Pembelian' },
+        { to: '/app/reports/products-customers', label: 'Produk & Pelanggan' },
+        { to: '/app/reports/receivable', label: 'Piutang (Credit)' },
       ],
     },
-    {
-      to: '/settings',
-      icon: Settings,
-      label: 'Pengaturan',
-      subItems: [
-        { to: '/settings', label: 'Aplikasi' },
-        { to: '/settings/users', label: 'Pengguna' },
-      ],
-    },
+    { to: '/app/settings', icon: Settings, label: 'Pengaturan' },
   ];
 
   return (
@@ -91,7 +85,7 @@ export function Sidebar() {
                         : 'text-muted-foreground',
                     )
                   }
-                  end={item.to === '/'}
+                  end={item.to === '/app'}
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
@@ -120,7 +114,10 @@ export function Sidebar() {
           })}
         </nav>
       </div>
-      <div className="border-t p-4">
+      <div className="border-t p-4 space-y-4">
+        <div className="px-3">
+          <SyncStatusIndicator />
+        </div>
         <button
           onClick={() => logout()}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"

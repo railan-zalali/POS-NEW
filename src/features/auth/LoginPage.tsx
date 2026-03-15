@@ -22,7 +22,7 @@ export default function LoginPage() {
   const { login, isLoading, isAuthenticated, error, seedData } = useAuthStore();
   const { toast } = useToast();
 
-  const from = location.state?.from?.pathname || '/';
+  const from = location.state?.from?.pathname || '/app';
 
   useEffect(() => {
     if (isAuthenticated) {

@@ -15,6 +15,7 @@ export const supplierRepository = {
       ...supplier,
       created_at: new Date(),
       updated_at: new Date(),
+      sync_status: 'pending',
     } as Supplier);
   },
 
@@ -22,6 +23,7 @@ export const supplierRepository = {
     return await db.suppliers.update(id, {
       ...updates,
       updated_at: new Date(),
+      sync_status: 'pending',
     });
   },
 

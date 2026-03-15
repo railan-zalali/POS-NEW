@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -49,9 +49,9 @@ export function CustomerFormDialog({
 }: CustomerFormDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  
+
   const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerSchema) as any,
+    resolver: zodResolver(customerSchema) as unknown as Resolver<CustomerFormValues>,
     defaultValues: {
       code: '',
       name: '',
@@ -119,7 +119,7 @@ export function CustomerFormDialog({
       }
       onSuccess();
       onOpenChange(false);
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Gagal',
         description: 'Terjadi kesalahan saat menyimpan pelanggan',
@@ -134,9 +134,7 @@ export function CustomerFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {customer ? 'Edit Pelanggan' : 'Tambah Pelanggan Baru'}
-          </DialogTitle>
+          <DialogTitle>{customer ? 'Edit Pelanggan' : 'Tambah Pelanggan Baru'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -144,9 +142,7 @@ export function CustomerFormDialog({
               <Label htmlFor="code">Kode Pelanggan</Label>
               <Input id="code" {...form.register('code')} placeholder="Ex: CUST-001" />
               {form.formState.errors.code && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.code.message}
-                </p>
+                <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -154,14 +150,12 @@ export function CustomerFormDialog({
               <Input id="nik" {...form.register('nik')} placeholder="Nomor Induk Kependudukan" />
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="name">Nama Lengkap</Label>
             <Input id="name" {...form.register('name')} placeholder="Nama Pelanggan" />
             {form.formState.errors.name && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.name.message}
-              </p>
+              <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
             )}
           </div>
 
@@ -174,9 +168,7 @@ export function CustomerFormDialog({
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" {...form.register('email')} />
               {form.formState.errors.email && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.email.message}
-                </p>
+                <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
               )}
             </div>
           </div>
@@ -187,22 +179,22 @@ export function CustomerFormDialog({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="village">Desa / Kelurahan</Label>
               <Input id="village" {...form.register('village')} />
             </div>
-             <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="district">Kecamatan</Label>
               <Input id="district" {...form.register('district')} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="regency">Kabupaten / Kota</Label>
               <Input id="regency" {...form.register('regency')} />
             </div>
-             <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="province">Provinsi</Label>
               <Input id="province" {...form.register('province')} />
             </div>
@@ -210,12 +202,7 @@ export function CustomerFormDialog({
 
           <div className="space-y-2">
             <Label htmlFor="credit_limit">Limit Kredit (Rp)</Label>
-            <Input 
-              id="credit_limit" 
-              type="number" 
-              min="0"
-              {...form.register('credit_limit')} 
-            />
+            <Input id="credit_limit" type="number" min="0" {...form.register('credit_limit')} />
             <p className="text-xs text-muted-foreground">
               Maksimal nominal hutang yang diperbolehkan untuk pelanggan ini.
             </p>

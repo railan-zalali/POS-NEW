@@ -15,13 +15,20 @@ export const productRepository = {
       ...product,
       created_at: new Date(),
       updated_at: new Date(),
+      sync_status: 'pending',
     } as Product);
   },
 
   async createWithUnits(
     productData: Omit<Product, 'id'>,
     unitsData: Omit<ProductUnit, 'id' | 'product_id'>[],
-    initialStockData?: { unitIndex: number; quantity: number; purchasePrice: number }[],
+    initialStockData?: {
+      unitIndex: number;
+      quantity: number;
+      purchasePrice: number;
+      batch_number?: string;
+      expire_date?: Date;
+    }[],
   ) {
     return await db.transaction(
       'rw',
@@ -46,6 +53,7 @@ export const productRepository = {
             product_id: productId,
             created_at: new Date(),
             updated_at: new Date(),
+            sync_status: 'pending',
           } as ProductUnit);
           unitIds.push(unitId);
         }
@@ -55,16 +63,20 @@ export const productRepository = {
           for (const stock of initialStockData) {
             if (stock.quantity > 0) {
               const unitId = unitIds[stock.unitIndex];
+              const unit = unitsData[stock.unitIndex];
 
-              // Add to product_stocks
+              // Add to product_stocks (Normalize to base unit)
               await db.product_stocks.add({
                 product_id: productId,
                 unit_id: unitId,
-                quantity: stock.quantity,
-                purchase_price: stock.purchasePrice,
+                batch_number: stock.batch_number,
+                expire_date: stock.expire_date,
+                quantity: stock.quantity * unit.conversion_factor,
+                purchase_price: stock.purchasePrice / unit.conversion_factor,
                 received_date: new Date(),
                 created_at: new Date(),
                 updated_at: new Date(),
+                sync_status: 'pending',
               } as ProductStock);
             }
           }
@@ -79,6 +91,7 @@ export const productRepository = {
     return await db.products.update(id, {
       ...updates,
       updated_at: new Date(),
+      sync_status: 'pending',
     });
   },
 

@@ -2,6 +2,8 @@ export interface BaseEntity {
   id?: string;
   created_at?: Date;
   updated_at?: Date;
+  sync_status?: SyncStatus;
+  synced_at?: Date;
 }
 
 export type SyncStatus = 'synced' | 'pending' | 'conflict';
@@ -14,8 +16,17 @@ export interface Product extends BaseEntity {
   supplier_ids: string[]; // Array of supplier IDs
   image_url?: string;
   is_active: boolean;
-  synced_at?: Date;
-  sync_status: SyncStatus;
+}
+
+export interface POSDraft extends BaseEntity {
+  name?: string;
+  customer_id?: string;
+  customer_name?: string;
+  items: unknown[]; // CartItem from posStore
+  subtotal: number;
+  total: number;
+  notes?: string;
+  created_at: Date;
 }
 
 export interface ProductUnit extends BaseEntity {
@@ -226,6 +237,6 @@ export interface StockMovement extends BaseEntity {
 // App Settings
 export interface AppSetting {
   key: string;
-  value: any;
+  value: unknown;
   description?: string;
 }

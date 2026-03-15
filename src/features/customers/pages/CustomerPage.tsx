@@ -13,8 +13,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { CustomerFormDialog } from '../components/CustomerFormDialog';
+import { CustomerImportDialog } from '../components/CustomerImportDialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Edit, Trash2, User, Phone, MapPin, Wallet } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, Phone, MapPin, Wallet, UploadCloud } from 'lucide-react';
 import type { Customer } from '@/lib/db/schema';
 import {
   AlertDialog,
@@ -31,16 +32,18 @@ import { Badge } from '@/components/ui/badge';
 export default function CustomerPage() {
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const customers = useLiveQuery(() => customerRepository.getAll()) || [];
 
-  const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(search.toLowerCase()) ||
-    customer.code.toLowerCase().includes(search.toLowerCase()) ||
-    (customer.phone && customer.phone.includes(search))
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.name.toLowerCase().includes(search.toLowerCase()) ||
+      customer.code.toLowerCase().includes(search.toLowerCase()) ||
+      (customer.phone && customer.phone.includes(search)),
   );
 
   const handleDelete = async () => {
@@ -49,10 +52,10 @@ export default function CustomerPage() {
       // TODO: Check if customer has linked transactions before deleting
       await customerRepository.delete(deleteId);
       toast({ title: 'Berhasil', description: 'Pelanggan berhasil dihapus' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Gagal',
-        description: error.message || 'Gagal menghapus pelanggan',
+        description: error instanceof Error ? error.message : 'Gagal menghapus pelanggan',
         variant: 'destructive',
       });
     } finally {
@@ -73,13 +76,21 @@ export default function CustomerPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">Data Pelanggan</h1>
-          <p className="text-muted-foreground">
-            Kelola data pelanggan dan limit kredit
-          </p>
+          <p className="text-muted-foreground">Kelola data pelanggan dan limit kredit</p>
         </div>
-        <Button onClick={() => { setEditingCustomer(null); setIsDialogOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" /> Tambah Pelanggan
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            <UploadCloud className="mr-2 h-4 w-4" /> Import Excel
+          </Button>
+          <Button
+            onClick={() => {
+              setEditingCustomer(null);
+              setIsDialogOpen(true);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" /> Tambah Pelanggan
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -126,7 +137,11 @@ export default function CustomerPage() {
                           <User className="h-4 w-4 text-muted-foreground" />
                           <div className="flex flex-col">
                             <span>{customer.name}</span>
-                            {customer.nik && <span className="text-xs text-muted-foreground">NIK: {customer.nik}</span>}
+                            {customer.nik && (
+                              <span className="text-xs text-muted-foreground">
+                                NIK: {customer.nik}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -146,7 +161,9 @@ export default function CustomerPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Wallet className="h-3 w-3 text-muted-foreground" />
-                          <Badge variant={customer.outstanding_credit > 0 ? "destructive" : "secondary"}>
+                          <Badge
+                            variant={customer.outstanding_credit > 0 ? 'destructive' : 'secondary'}
+                          >
                             {formatCurrency(customer.outstanding_credit)}
                           </Badge>
                         </div>
@@ -189,6 +206,14 @@ export default function CustomerPage() {
         onSuccess={() => {}}
       />
 
+      <CustomerImportDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onSuccess={() => {
+          setIsImportOpen(false);
+        }}
+      />
+
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -199,7 +224,10 @@ export default function CustomerPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>

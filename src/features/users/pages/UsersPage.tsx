@@ -100,7 +100,7 @@ export default function UsersPage() {
         toast({ title: 'Berhasil', description: 'Pengguna baru berhasil dibuat.' });
       }
       setIsDialogOpen(false);
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Gagal',
         description: 'Terjadi kesalahan saat menyimpan data.',

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -49,9 +49,9 @@ export function SupplierFormDialog({
 }: SupplierFormDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  
+
   const form = useForm<SupplierFormValues>({
-    resolver: zodResolver(supplierSchema) as any,
+    resolver: zodResolver(supplierSchema) as unknown as Resolver<SupplierFormValues>,
     defaultValues: {
       code: '',
       name: '',
@@ -116,7 +116,7 @@ export function SupplierFormDialog({
       }
       onSuccess();
       onOpenChange(false);
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Gagal',
         description: 'Terjadi kesalahan saat menyimpan supplier',
@@ -131,9 +131,7 @@ export function SupplierFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {supplier ? 'Edit Supplier' : 'Tambah Supplier Baru'}
-          </DialogTitle>
+          <DialogTitle>{supplier ? 'Edit Supplier' : 'Tambah Supplier Baru'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -141,22 +139,18 @@ export function SupplierFormDialog({
               <Label htmlFor="code">Kode Supplier</Label>
               <Input id="code" {...form.register('code')} placeholder="Ex: SUP-001" />
               {form.formState.errors.code && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.code.message}
-                </p>
+                <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
               )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="name">Nama Supplier</Label>
               <Input id="name" {...form.register('name')} placeholder="Ex: PT. Tani Jaya" />
               {form.formState.errors.name && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.name.message}
-                </p>
+                <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
               )}
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="contact_person">Kontak Person</Label>
@@ -172,9 +166,7 @@ export function SupplierFormDialog({
             <Label htmlFor="email">Email</Label>
             <Input id="email" type="email" {...form.register('email')} />
             {form.formState.errors.email && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.email.message}
-              </p>
+              <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
             )}
           </div>
 
@@ -184,18 +176,13 @@ export function SupplierFormDialog({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="city">Kota</Label>
               <Input id="city" {...form.register('city')} />
             </div>
-             <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="payment_terms">Termin Pembayaran (Hari)</Label>
-              <Input 
-                id="payment_terms" 
-                type="number" 
-                min="0"
-                {...form.register('payment_terms')} 
-              />
+              <Input id="payment_terms" type="number" min="0" {...form.register('payment_terms')} />
             </div>
           </div>
 

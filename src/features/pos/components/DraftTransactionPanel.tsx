@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { usePOSStore } from '../store/posStore';
+import { usePOSStore, CartItem } from '../store/posStore';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db/dexie';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -16,10 +18,10 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 export function DraftTransactionPanel() {
-  const { cart, customer, saveDraft, loadDraft, removeDraft, drafts, resetTransaction } =
-    usePOSStore();
+  const { cart, customer, saveDraft, loadDraft, resetTransaction } = usePOSStore();
   const { toast } = useToast();
 
+  const drafts = useLiveQuery(() => db.pos_drafts.orderBy('created_at').reverse().toArray()) || [];
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -42,8 +44,8 @@ export function DraftTransactionPanel() {
     setIsSaveDialogOpen(true);
   };
 
-  const confirmSaveDraft = () => {
-    saveDraft(draftName);
+  const confirmSaveDraft = async () => {
+    await saveDraft(draftName);
     toast({
       title: 'Draft Disimpan',
       description: `Draft "${draftName}" berhasil disimpan.`,
@@ -52,8 +54,8 @@ export function DraftTransactionPanel() {
     resetTransaction();
   };
 
-  const handleLoadDraft = (draftId: string) => {
-    loadDraft(draftId);
+  const handleLoadDraft = (items: CartItem[], customerId?: string) => {
+    loadDraft(items, customerId);
     toast({
       title: 'Draft Dimuat',
       description: 'Draft transaksi berhasil dimuat kembali.',
@@ -61,9 +63,9 @@ export function DraftTransactionPanel() {
     setIsSheetOpen(false);
   };
 
-  const handleRemoveDraft = (e: React.MouseEvent, draftId: string) => {
+  const handleRemoveDraft = async (e: React.MouseEvent, draftId: string) => {
     e.stopPropagation();
-    removeDraft(draftId);
+    await db.pos_drafts.delete(draftId);
     toast({
       title: 'Draft Dihapus',
       description: 'Draft berhasil dihapus dari daftar.',
@@ -80,7 +82,12 @@ export function DraftTransactionPanel() {
 
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="flex-1 relative">
+            <Button
+              id="draft-panel-trigger"
+              variant="outline"
+              size="sm"
+              className="flex-1 relative"
+            >
               <FileText className="mr-2 h-4 w-4" />
               Buka Draft
               {drafts.length > 0 && (
@@ -105,7 +112,7 @@ export function DraftTransactionPanel() {
                   <div
                     key={draft.id}
                     className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => handleLoadDraft(draft.id)}
+                    onClick={() => handleLoadDraft(draft.items, draft.customer_id)}
                   >
                     <div className="flex justify-between items-start">
                       <div>
@@ -119,7 +126,7 @@ export function DraftTransactionPanel() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => handleRemoveDraft(e, draft.id)}
+                        onClick={(e) => handleRemoveDraft(e, draft.id!)}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -127,10 +134,7 @@ export function DraftTransactionPanel() {
                     <div className="flex justify-between items-center text-xs mt-1 pt-2 border-t">
                       <span className="text-muted-foreground">{draft.items.length} Item</span>
                       <span className="font-semibold text-primary">
-                        Rp{' '}
-                        {draft.items
-                          .reduce((sum, item) => sum + item.subtotal, 0)
-                          .toLocaleString('id-ID')}
+                        Rp {draft.total.toLocaleString('id-ID')}
                       </span>
                     </div>
                   </div>

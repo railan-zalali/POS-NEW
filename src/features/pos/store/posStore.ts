@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { db } from '@/lib/db/dexie';
 import type { Customer, Product, ProductUnit } from '@/lib/db/schema';
 
 export interface CartItem {
@@ -30,7 +31,7 @@ interface POSState {
   transaction_date: Date;
   customer: Customer | null;
   cart: CartItem[];
-  drafts: Draft[];
+  // drafts: Draft[]; // Removed from state, now in Dexie
 
   // Payment State
   payment_method: 'cash' | 'transfer' | 'credit';
@@ -54,9 +55,9 @@ interface POSState {
   resetTransaction: () => void;
 
   // Draft Actions
-  saveDraft: (name?: string) => void;
-  loadDraft: (draftId: string) => void;
-  removeDraft: (draftId: string) => void;
+  saveDraft: (name?: string) => Promise<void>;
+  loadDraft: (items: CartItem[], customerId?: string) => void;
+  // removeDraft is now handled directly by components via Dexie
 
   // Computed (Helper)
   getTotal: () => number;
@@ -71,7 +72,6 @@ export const usePOSStore = create<POSState>()(
       transaction_date: new Date(),
       customer: null,
       cart: [],
-      drafts: [],
       payment_method: 'cash',
       paid_amount: 0,
       global_discount: 0,
@@ -165,44 +165,26 @@ export const usePOSStore = create<POSState>()(
           is_processing: false,
         }),
 
-      saveDraft: (name) => {
-        const { cart, customer, drafts } = get();
+      saveDraft: async (name) => {
+        const { cart, customer, getTotal, getSubtotal, notes } = get();
         if (cart.length === 0) return;
 
-        const newDraft: Draft = {
-          id: crypto.randomUUID(),
+        await db.pos_drafts.add({
           name: name,
           customer_id: customer?.id,
           customer_name: customer?.name,
           items: cart,
-          created_at: Date.now(),
-        };
-
-        set({ drafts: [...drafts, newDraft] });
+          subtotal: getSubtotal(),
+          total: getTotal(),
+          notes: notes,
+          created_at: new Date(),
+        });
       },
 
-      loadDraft: (draftId) => {
-        const { drafts } = get();
-        const draft = drafts.find((d) => d.id === draftId);
-
-        if (draft) {
-          // TODO: Ideally we should re-fetch customer object if ID exists
-          // For now we just load items. Customer loading needs async or passed customer object
-          // We can't fully restore customer object just from ID synchronously here
-          // So we might need to store full customer object in draft or fetch it
-
-          set({
-            cart: draft.items,
-            // customer: ... (need to fetch)
-            // For now simple reset
-            customer: null,
-            drafts: drafts.filter((d) => d.id !== draftId), // Remove from drafts after load? Or keep? Usually remove.
-          });
-        }
-      },
-
-      removeDraft: (draftId) => {
-        set({ drafts: get().drafts.filter((d) => d.id !== draftId) });
+      loadDraft: (items) => {
+        set({
+          cart: items,
+        });
       },
 
       getSubtotal: () => {
@@ -224,7 +206,6 @@ export const usePOSStore = create<POSState>()(
       partialize: (state) => ({
         cart: state.cart,
         customer: state.customer,
-        drafts: state.drafts,
         payment_method: state.payment_method,
         notes: state.notes,
       }),

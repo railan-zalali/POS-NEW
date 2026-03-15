@@ -102,7 +102,7 @@ export function CategoryFormDialog({
       }
       onSuccess();
       onOpenChange(false);
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Gagal',
         description: 'Terjadi kesalahan saat menyimpan kategori',

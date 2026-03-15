@@ -19,6 +19,7 @@ export const userRepository = {
       ...user,
       created_at: new Date(),
       updated_at: new Date(),
+      sync_status: 'pending',
     } as User);
   },
 
@@ -26,6 +27,7 @@ export const userRepository = {
     return await db.users.update(id, {
       ...updates,
       updated_at: new Date(),
+      sync_status: 'pending',
     });
   },
 
@@ -46,6 +48,7 @@ export const userRepository = {
       ...role,
       created_at: new Date(),
       updated_at: new Date(),
+      sync_status: 'pending',
     } as Role);
   },
 
@@ -53,6 +56,7 @@ export const userRepository = {
     return await db.roles.update(id, {
       ...updates,
       updated_at: new Date(),
+      sync_status: 'pending',
     });
   },
 

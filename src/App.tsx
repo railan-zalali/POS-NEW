@@ -1,5 +1,8 @@
+import { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { syncEngine } from '@/lib/supabase/syncEngine';
+import LandingPage from '@/features/landing/pages/LandingPage';
 import LoginPage from '@/features/auth/LoginPage';
 import { RequireAuth } from '@/features/auth/RequireAuth';
 import CategoryPage from '@/features/categories/pages/CategoryPage';
@@ -8,7 +11,6 @@ import CustomerPage from '@/features/customers/pages/CustomerPage';
 import ProductPage from '@/features/products/pages/ProductPage';
 import ProductBatchPage from '@/features/products/pages/ProductBatchPage';
 import POSPage from '@/features/pos/pages/POSPage';
-import CreatePOPage from '@/features/purchase/pages/CreatePOPage';
 import POListPage from '@/features/purchase/pages/POListPage';
 import GoodsReceiptPage from '@/features/purchase/pages/GoodsReceiptPage';
 import StockReportPage from '@/features/stock/pages/StockReportPage';
@@ -17,17 +19,22 @@ import ProfitLossPage from '@/features/reports/pages/ProfitLossPage';
 import PurchaseReportPage from '@/features/reports/pages/PurchaseReportPage';
 import ProductCustomerReportPage from '@/features/reports/pages/ProductCustomerReportPage';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
-import UsersPage from '@/features/users/pages/UsersPage';
 import SettingsPage from '@/features/settings/pages/SettingsPage';
+import AccountsReceivablePage from '@/features/reports/pages/AccountsReceivablePage';
 import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const router = createBrowserRouter([
   {
     path: '/',
+    element: <LandingPage />,
+  },
+  {
+    path: '/app',
     element: <RequireAuth />,
     children: [
       {
-        path: '/',
+        path: '',
         element: <AppLayout />,
         children: [
           {
@@ -63,11 +70,7 @@ const router = createBrowserRouter([
                 element: <POListPage />,
               },
               {
-                path: 'create',
-                element: <CreatePOPage />,
-              },
-              {
-                path: ':poId',
+                path: 'receipts',
                 element: <GoodsReceiptPage />,
               },
             ],
@@ -108,20 +111,15 @@ const router = createBrowserRouter([
                 path: 'products-customers',
                 element: <ProductCustomerReportPage />,
               },
+              {
+                path: 'receivable',
+                element: <AccountsReceivablePage />,
+              },
             ],
           },
           {
             path: 'settings',
-            children: [
-              {
-                index: true,
-                element: <SettingsPage />,
-              },
-              {
-                path: 'users',
-                element: <UsersPage />,
-              },
-            ],
+            element: <SettingsPage />,
           },
         ],
       },
@@ -138,11 +136,16 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
+  useEffect(() => {
+    const interval = syncEngine.startAutoSync();
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <>
+    <TooltipProvider>
       <RouterProvider router={router} />
       <Toaster />
-    </>
+    </TooltipProvider>
   );
 }
 

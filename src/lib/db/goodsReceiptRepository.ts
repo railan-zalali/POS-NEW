@@ -1,5 +1,11 @@
 import { db } from './dexie';
-import type { GoodsReceipt, GoodsReceiptItem, PurchaseOrder, ProductStock } from './schema';
+import type {
+  GoodsReceipt,
+  GoodsReceiptItem,
+  PurchaseOrder,
+  ProductStock,
+  PurchaseOrderItem,
+} from './schema';
 
 export const goodsReceiptRepository = {
   async getAll() {
@@ -29,6 +35,9 @@ export const goodsReceiptRepository = {
         const grId = await db.goods_receipts.add({
           ...gr,
           received_date: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
+          sync_status: 'pending',
         } as GoodsReceipt);
 
         // 2. Create Items & Update Stock
@@ -37,6 +46,9 @@ export const goodsReceiptRepository = {
           await db.goods_receipt_items.add({
             ...item,
             gr_id: grId,
+            created_at: new Date(),
+            updated_at: new Date(),
+            sync_status: 'pending',
           } as GoodsReceiptItem);
 
           // Update Stock (Add new batch)
@@ -45,23 +57,29 @@ export const goodsReceiptRepository = {
             const poItem = await db.purchase_order_items.get(item.po_item_id);
 
             if (poItem) {
-              // Add to product_stocks
+              const unit = await db.product_units.get(poItem.product_unit_id);
+              const factor = unit?.conversion_factor || 1;
+
+              // Add to product_stocks (Normalize to base unit)
               await db.product_stocks.add({
                 product_id: item.product_id,
                 unit_id: poItem.product_unit_id,
                 batch_number: item.batch_number,
                 expire_date: item.expire_date,
-                quantity: item.quantity_received,
+                quantity: item.quantity_received * factor,
                 received_date: new Date(),
                 purchase_order_item_id: item.po_item_id,
-                purchase_price: poItem.unit_price,
+                purchase_price: poItem.unit_price / factor,
                 created_at: new Date(),
                 updated_at: new Date(),
+                sync_status: 'pending',
               } as ProductStock);
 
               // Update PO Item quantity_received
               await db.purchase_order_items.update(item.po_item_id, {
                 quantity_received: (poItem.quantity_received || 0) + item.quantity_received,
+                updated_at: new Date(),
+                sync_status: 'pending',
               });
             }
           }
@@ -70,15 +88,19 @@ export const goodsReceiptRepository = {
         // 3. Update PO Status
         const poItems = await db.purchase_order_items.where('po_id').equals(gr.po_id).toArray();
         const allReceived = poItems.every(
-          (i: any) => (i.quantity_received || 0) >= i.quantity_ordered,
+          (i: PurchaseOrderItem) => (i.quantity_received || 0) >= i.quantity_ordered,
         );
-        const someReceived = poItems.some((i: any) => (i.quantity_received || 0) > 0);
+        const someReceived = poItems.some((i: PurchaseOrderItem) => (i.quantity_received || 0) > 0);
 
         let newStatus: PurchaseOrder['status'] = 'sent';
         if (allReceived) newStatus = 'received';
         else if (someReceived) newStatus = 'partial_received';
 
-        await db.purchase_orders.update(gr.po_id, { status: newStatus });
+        await db.purchase_orders.update(gr.po_id, {
+          status: newStatus,
+          updated_at: new Date(),
+          sync_status: 'pending',
+        });
 
         return grId;
       },

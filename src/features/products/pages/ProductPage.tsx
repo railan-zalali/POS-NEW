@@ -48,10 +48,10 @@ export default function ProductPage() {
     try {
       await productRepository.delete(deleteId);
       toast({ title: 'Berhasil', description: 'Produk berhasil dihapus' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Gagal',
-        description: error.message || 'Gagal menghapus produk',
+        description: error instanceof Error ? error.message : 'Gagal menghapus produk',
         variant: 'destructive',
       });
     } finally {

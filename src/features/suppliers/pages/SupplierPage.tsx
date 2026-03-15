@@ -36,10 +36,12 @@ export default function SupplierPage() {
 
   const suppliers = useLiveQuery(() => supplierRepository.getAll()) || [];
 
-  const filteredSuppliers = suppliers.filter((supplier) =>
-    supplier.name.toLowerCase().includes(search.toLowerCase()) ||
-    supplier.code.toLowerCase().includes(search.toLowerCase()) ||
-    (supplier.contact_person && supplier.contact_person.toLowerCase().includes(search.toLowerCase()))
+  const filteredSuppliers = suppliers.filter(
+    (supplier) =>
+      supplier.name.toLowerCase().includes(search.toLowerCase()) ||
+      supplier.code.toLowerCase().includes(search.toLowerCase()) ||
+      (supplier.contact_person &&
+        supplier.contact_person.toLowerCase().includes(search.toLowerCase())),
   );
 
   const handleDelete = async () => {
@@ -48,10 +50,10 @@ export default function SupplierPage() {
       // TODO: Check if supplier has linked products or POs before deleting
       await supplierRepository.delete(deleteId);
       toast({ title: 'Berhasil', description: 'Supplier berhasil dihapus' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Gagal',
-        description: error.message || 'Gagal menghapus supplier',
+        description: error instanceof Error ? error.message : 'Gagal menghapus supplier',
         variant: 'destructive',
       });
     } finally {
@@ -64,11 +66,14 @@ export default function SupplierPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">Data Supplier</h1>
-          <p className="text-muted-foreground">
-            Kelola data pemasok barang dan termin pembayaran
-          </p>
+          <p className="text-muted-foreground">Kelola data pemasok barang dan termin pembayaran</p>
         </div>
-        <Button onClick={() => { setEditingSupplier(null); setIsDialogOpen(true); }}>
+        <Button
+          onClick={() => {
+            setEditingSupplier(null);
+            setIsDialogOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" /> Tambah Supplier
         </Button>
       </div>
@@ -181,7 +186,10 @@ export default function SupplierPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>
