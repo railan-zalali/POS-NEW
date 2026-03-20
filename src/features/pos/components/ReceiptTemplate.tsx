@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import type { CartItem } from '@/features/pos/store/posStore';
+import type { CartItem } from '@/lib/db/schema';
 
 // Interface for props if needed
 interface ReceiptProps {
@@ -12,6 +12,7 @@ interface ReceiptProps {
     subtotal: number;
     discount_amount: number;
     total_amount: number;
+    tax_amount: number;
     paid_amount: number;
     change_amount: number;
     payment_method: string;
@@ -71,6 +72,12 @@ export const ReceiptTemplate = ({ transaction }: ReceiptProps) => {
           <div className="flex justify-between">
             <span>Diskon Total</span>
             <span>-{transaction.discount_amount.toLocaleString()}</span>
+          </div>
+        )}
+        {transaction.tax_amount > 0 && (
+          <div className="flex justify-between">
+            <span>Pajak (PPN)</span>
+            <span>{transaction.tax_amount.toLocaleString()}</span>
           </div>
         )}
         <div className="flex justify-between font-bold text-xs my-1">

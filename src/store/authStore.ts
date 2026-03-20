@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { userRepository } from '@/lib/db/userRepository';
-import type { User, Role } from '@/lib/db/schema';
+import type { User, Role, PermissionKey } from '@/lib/db/schema';
 
 interface AuthState {
   user: (User & { role?: Role }) | null;
@@ -12,11 +12,12 @@ interface AuthState {
   logout: () => void;
   checkAuth: () => Promise<void>;
   seedData: () => Promise<void>;
+  hasPermission: (permission: PermissionKey) => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
       isLoading: false,
@@ -32,7 +33,6 @@ export const useAuthStore = create<AuthState>()(
             return false;
           }
 
-          // In real app, verify hashed PIN. For now simple comparison
           if (user.pin !== pin) {
             set({ error: 'PIN salah', isLoading: false });
             return false;
@@ -63,13 +63,17 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, isAuthenticated: false });
       },
 
-      checkAuth: async () => {
-        // Implementation for checking valid session if using tokens
-        // For local-first, we trust the persisted state but could re-validate user existence
-      },
+      checkAuth: async () => {},
 
       seedData: async () => {
         await userRepository.seedDefaultData();
+      },
+
+      hasPermission: (permission: PermissionKey) => {
+        const state = get();
+        if (!state.user) return false;
+        if (!state.user.role) return false;
+        return state.user.role.permissions.includes(permission);
       },
     }),
     {

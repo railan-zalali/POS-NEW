@@ -15,7 +15,7 @@ export const purchaseOrderRepository = {
   },
 
   async create(po: Omit<PurchaseOrder, 'id'>, items: Omit<PurchaseOrderItem, 'id' | 'po_id'>[]) {
-    return await db.transaction('rw', db.purchase_orders, db.purchase_order_items, async () => {
+    return await db.transaction('rw', [db.purchase_orders, db.purchase_order_items], async () => {
       const poId = await db.purchase_orders.add({
         ...po,
         created_at: new Date(),

@@ -14,6 +14,7 @@ import POSPage from '@/features/pos/pages/POSPage';
 import POListPage from '@/features/purchase/pages/POListPage';
 import GoodsReceiptPage from '@/features/purchase/pages/GoodsReceiptPage';
 import StockReportPage from '@/features/stock/pages/StockReportPage';
+import StockAdjustmentPage from '@/features/stock/pages/StockAdjustmentPage';
 import SalesReportPage from '@/features/reports/pages/SalesReportPage';
 import ProfitLossPage from '@/features/reports/pages/ProfitLossPage';
 import PurchaseReportPage from '@/features/reports/pages/PurchaseReportPage';
@@ -21,6 +22,10 @@ import ProductCustomerReportPage from '@/features/reports/pages/ProductCustomerR
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import SettingsPage from '@/features/settings/pages/SettingsPage';
 import AccountsReceivablePage from '@/features/reports/pages/AccountsReceivablePage';
+import VoidTransactionPage from '@/features/reports/pages/VoidTransactionPage';
+import ExpensePage from '@/features/expenses/pages/ExpensePage';
+import CustomerPaymentPage from '@/features/customers/pages/CustomerPaymentPage';
+import PurchaseReturnPage from '@/features/purchase/pages/PurchaseReturnPage';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -73,6 +78,10 @@ const router = createBrowserRouter([
                 path: 'receipts',
                 element: <GoodsReceiptPage />,
               },
+              {
+                path: 'returns',
+                element: <PurchaseReturnPage />,
+              },
             ],
           },
           {
@@ -81,6 +90,10 @@ const router = createBrowserRouter([
               {
                 index: true,
                 element: <StockReportPage />,
+              },
+              {
+                path: 'adjustment',
+                element: <StockAdjustmentPage />,
               },
             ],
           },
@@ -115,11 +128,23 @@ const router = createBrowserRouter([
                 path: 'receivable',
                 element: <AccountsReceivablePage />,
               },
+              {
+                path: 'void',
+                element: <VoidTransactionPage />,
+              },
             ],
           },
           {
             path: 'settings',
             element: <SettingsPage />,
+          },
+          {
+            path: 'expenses',
+            element: <ExpensePage />,
+          },
+          {
+            path: 'customers/payments',
+            element: <CustomerPaymentPage />,
           },
         ],
       },

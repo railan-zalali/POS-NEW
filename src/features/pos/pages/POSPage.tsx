@@ -107,10 +107,7 @@ export default function POSPage() {
       // F8: Save Draft
       if (e.key === 'F8') {
         e.preventDefault();
-        // Trigger save draft via a synthetic click or just re-implement here?
-        // Simpler to just use IDs.
-        const saveBtn = document.querySelector('button:has(.lucide-save)');
-        (saveBtn as HTMLButtonElement)?.click();
+        document.getElementById('save-draft-trigger')?.click();
       }
       // ESC: Close Dialogs
       if (e.key === 'Escape') {

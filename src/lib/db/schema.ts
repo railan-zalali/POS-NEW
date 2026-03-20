@@ -18,11 +18,24 @@ export interface Product extends BaseEntity {
   is_active: boolean;
 }
 
+export interface CartItem {
+  id: string; // Unique ID for cart item (not product ID)
+  product_id: string;
+  product_name: string;
+  unit_id: string;
+  unit_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  discount_amount: number;
+  notes?: string;
+}
+
 export interface POSDraft extends BaseEntity {
   name?: string;
   customer_id?: string;
   customer_name?: string;
-  items: unknown[]; // CartItem from posStore
+  items: CartItem[];
   subtotal: number;
   total: number;
   notes?: string;
@@ -239,4 +252,76 @@ export interface AppSetting {
   key: string;
   value: unknown;
   description?: string;
+}
+
+// Expense Module
+export type ExpenseCategory =
+  | 'operational'
+  | 'electricity'
+  | 'water'
+  | 'internet'
+  | 'rent'
+  | 'salary'
+  | 'marketing'
+  | 'maintenance'
+  | 'supplies'
+  | 'transportation'
+  | 'tax'
+  | 'insurance'
+  | 'other';
+
+export interface Expense extends BaseEntity {
+  date: Date;
+  category: ExpenseCategory;
+  description: string;
+  amount: number;
+  payment_method: PaymentMethod;
+  receipt_number?: string;
+  created_by: string;
+  notes?: string;
+}
+
+// Customer Payment (AR Settlement)
+export interface CustomerPayment extends BaseEntity {
+  payment_number: string;
+  customer_id: string;
+  payment_date: Date;
+  amount: number;
+  payment_method: PaymentMethod;
+  reference_number?: string;
+  notes?: string;
+  created_by: string;
+}
+
+// Purchase Return
+export type ReturnReason =
+  | 'defective'
+  | 'wrong_item'
+  | 'expired'
+  | 'damaged'
+  | 'excess_order'
+  | 'customer_return'
+  | 'other';
+
+export interface PurchaseReturn extends BaseEntity {
+  return_number: string;
+  goods_receipt_id?: string;
+  supplier_id: string;
+  return_date: Date;
+  total_amount: number;
+  reason: ReturnReason;
+  notes?: string;
+  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'completed';
+  created_by: string;
+}
+
+export interface PurchaseReturnItem extends BaseEntity {
+  return_id: string;
+  product_id: string;
+  product_unit_id: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  reason: ReturnReason;
+  notes?: string;
 }

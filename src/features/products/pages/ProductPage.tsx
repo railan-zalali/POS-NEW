@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { productRepository } from '@/lib/db/productRepository';
+import { categoryRepository } from '@/lib/db/categoryRepository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,9 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ProductFormDialog } from '../components/ProductFormDialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Edit, Trash2, Package, Tag } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, Tag, Filter } from 'lucide-react';
 import type { Product } from '@/lib/db/schema';
 import {
   AlertDialog,
@@ -30,18 +38,29 @@ import { Badge } from '@/components/ui/badge';
 
 export default function ProductPage() {
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const products = useLiveQuery(() => productRepository.getAll()) || [];
+  const categories = useLiveQuery(() => categoryRepository.getAll()) || [];
 
   const filteredProducts = products.filter(
     (product) =>
-      product.name.toLowerCase().includes(search.toLowerCase()) ||
-      product.code.toLowerCase().includes(search.toLowerCase()),
+      (product.name.toLowerCase().includes(search.toLowerCase()) ||
+        product.code.toLowerCase().includes(search.toLowerCase())) &&
+      (categoryFilter === 'all' || product.category_id === categoryFilter) &&
+      (statusFilter === 'all' ||
+        (statusFilter === 'active' && product.is_active) ||
+        (statusFilter === 'inactive' && !product.is_active)),
   );
+
+  const getCategoryName = (categoryId: string) => {
+    return categories.find((c) => c.id === categoryId)?.name || '-';
+  };
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -77,17 +96,45 @@ export default function ProductPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between space-y-2 gap-4 pb-4">
           <CardTitle className="text-xl font-semibold">Daftar Produk</CardTitle>
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Cari nama atau kode produk..."
-              className="pl-8"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Cari nama atau kode..."
+                className="pl-8"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kategori</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id!}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="active">Aktif</SelectItem>
+                  <SelectItem value="inactive">Non-aktif</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -137,8 +184,7 @@ export default function ProductPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Tag className="h-3 w-3 text-muted-foreground" />
-                          {/* Need to fetch category name, simplified for now */}
-                          <span>{product.category_id}</span>
+                          <span className="text-sm">{getCategoryName(product.category_id)}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -173,6 +219,9 @@ export default function ProductPage() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          <div className="mt-4 text-sm text-muted-foreground">
+            Menampilkan {filteredProducts.length} dari {products.length} produk
           </div>
         </CardContent>
       </Card>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { usePOSStore, CartItem } from '../store/posStore';
+import { usePOSStore } from '../store/posStore';
+import { type CartItem } from '@/lib/db/schema';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/dexie';
 import { Button } from '@/components/ui/button';
@@ -75,7 +76,13 @@ export function DraftTransactionPanel() {
   return (
     <>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="flex-1" onClick={handleSaveDraft}>
+        <Button
+          id="save-draft-trigger"
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          onClick={handleSaveDraft}
+        >
           <Save className="mr-2 h-4 w-4" />
           Simpan Draft
         </Button>

@@ -17,10 +17,13 @@ export const transactionRepository = {
   ) {
     return await db.transaction(
       'rw',
-      db.sales_transactions,
-      db.sales_transaction_items,
-      db.product_stocks,
-      db.stock_movements,
+      [
+        db.sales_transactions,
+        db.sales_transaction_items,
+        db.product_stocks,
+        db.product_units,
+        db.stock_movements,
+      ],
       async () => {
         // 1. Process Items (FIFO Allocation & Stock Deduction)
         const processedItems: Omit<SalesTransactionItem, 'id' | 'transaction_id'>[] = [];

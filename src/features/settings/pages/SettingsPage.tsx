@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { userRepository } from '@/lib/db/userRepository';
 import { syncEngine } from '@/lib/supabase/syncEngine';
+import { seedDummyData } from '@/lib/db/dummyData';
 import { cn } from '@/lib/utils';
 import {
   Select,
@@ -468,6 +469,32 @@ export default function SettingsPage() {
                   <h3 className="text-lg font-black text-slate-800">Backup Seluruh Data</h3>
                   <p className="text-sm text-slate-500 mt-1">
                     Unduh semua data transaksi, stok, dan pelanggan dalam format JSON.
+                  </p>
+                </div>
+                <div
+                  onClick={async () => {
+                    if (confirm('Isi database dengan data dummy? Data yang ada akan dihapus.')) {
+                      try {
+                        await seedDummyData();
+                        toast({ title: 'Berhasil', description: 'Data dummy telah dibuat.' });
+                        window.location.reload();
+                      } catch (_err) {
+                        toast({
+                          title: 'Gagal',
+                          description: 'Gagal membuat data dummy.',
+                          variant: 'destructive',
+                        });
+                      }
+                    }
+                  }}
+                  className="p-8 rounded-3xl bg-blue-50 border border-blue-100 cursor-pointer hover:scale-[1.02] transition-transform group"
+                >
+                  <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-blue-600 shadow-sm mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <Database className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800">Generate Data Dummy</h3>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Isi database dengan kategori, produk, dan stok contoh untuk percobaan.
                   </p>
                 </div>
                 <div

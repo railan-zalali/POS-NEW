@@ -14,8 +14,22 @@ interface CartPanelProps {
 }
 
 export function CartPanel({ user, onPaymentOpen }: CartPanelProps) {
-  const { cart, getTotal, getChange, paid_amount, setPaidAmount, resetTransaction } = usePOSStore();
+  const {
+    cart,
+    getTotal,
+    getSubtotal,
+    getTaxAmount,
+    getChange,
+    paid_amount,
+    global_discount,
+    tax_rate,
+    setPaidAmount,
+    setGlobalDiscount,
+    resetTransaction,
+  } = usePOSStore();
 
+  const subtotal = getSubtotal();
+  const tax = getTaxAmount();
   const total = getTotal();
   const change = getChange();
 
@@ -57,9 +71,28 @@ export function CartPanel({ user, onPaymentOpen }: CartPanelProps) {
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>
-            <span>Rp {total.toLocaleString('id-ID')}</span>
+            <span>Rp {subtotal.toLocaleString('id-ID')}</span>
           </div>
-          <div className="flex justify-between text-lg font-bold">
+
+          <div className="flex justify-between text-sm items-center">
+            <span className="text-muted-foreground">Diskon Global</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Rp</span>
+              <Input
+                type="number"
+                className="h-7 w-24 text-right text-xs"
+                value={global_discount || ''}
+                onChange={(e) => setGlobalDiscount(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Pajak (PPN {tax_rate}%)</span>
+            <span>Rp {tax.toLocaleString('id-ID')}</span>
+          </div>
+
+          <div className="flex justify-between text-lg font-bold border-t pt-2">
             <span>Total</span>
             <span className="text-primary">Rp {total.toLocaleString('id-ID')}</span>
           </div>

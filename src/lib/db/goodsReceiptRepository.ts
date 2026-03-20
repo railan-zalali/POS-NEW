@@ -28,6 +28,7 @@ export const goodsReceiptRepository = {
         db.goods_receipt_items,
         db.purchase_orders,
         db.purchase_order_items,
+        db.product_units,
         db.product_stocks,
       ],
       async () => {

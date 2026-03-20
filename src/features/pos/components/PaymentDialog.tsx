@@ -3,7 +3,7 @@ import { usePOSStore } from '../store/posStore';
 import { useAuthStore } from '@/store/authStore';
 import { transactionRepository } from '@/lib/db/transactionRepository';
 import type { TransactionStatus, PaymentMethod, Customer } from '@/lib/db/schema';
-import type { CartItem } from '../store/posStore';
+import type { CartItem } from '@/lib/db/schema';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -34,6 +34,7 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
     notes,
     getTotal,
     getSubtotal,
+    getTaxAmount,
     getChange,
     resetTransaction,
   } = usePOSStore();
@@ -93,7 +94,7 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
         transaction_date: new Date(),
         subtotal: getSubtotal(),
         discount_amount: global_discount,
-        tax_amount: 0, // TODO: Implement tax
+        tax_amount: getTaxAmount(),
         total_amount: total,
         paid_amount: paid_amount,
         change_amount: change,
@@ -126,6 +127,7 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
         items: cart,
         subtotal: getSubtotal(),
         discount_amount: global_discount,
+        tax_amount: getTaxAmount(),
         total_amount: total,
         paid_amount: paid_amount,
         change_amount: change,
@@ -140,7 +142,8 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
       console.error(error);
       toast({
         title: 'Gagal',
-        description: 'Terjadi kesalahan saat memproses transaksi.',
+        description:
+          error instanceof Error ? error.message : 'Terjadi kesalahan saat memproses transaksi.',
         variant: 'destructive',
       });
     } finally {
@@ -175,6 +178,16 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Pembayaran ({payment_method})</span>
                 <span>Rp {paid_amount.toLocaleString('id-ID')}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Diskon</span>
+                <span className="text-destructive">
+                  -Rp {global_discount.toLocaleString('id-ID')}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Pajak</span>
+                <span>Rp {getTaxAmount().toLocaleString('id-ID')}</span>
               </div>
               <div className="flex justify-between text-sm border-t pt-2">
                 <span className="text-muted-foreground">Kembalian</span>

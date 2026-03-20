@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { usePOSStore, type CartItem } from '../store/posStore';
+import { usePOSStore } from '../store/posStore';
+import { type CartItem } from '@/lib/db/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, Plus, Minus, Tag } from 'lucide-react';

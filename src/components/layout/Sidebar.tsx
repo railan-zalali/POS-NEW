@@ -12,6 +12,9 @@ import {
   LogOut,
   Archive,
   ClipboardList,
+  XCircle,
+  Receipt,
+  DollarSign,
 } from 'lucide-react';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 
@@ -39,10 +42,13 @@ export function Sidebar() {
       subItems: [
         { to: '/app/purchase', label: 'Purchase Order' },
         { to: '/app/purchase/receipts', label: 'Penerimaan Barang' },
+        { to: '/app/purchase/returns', label: 'Retur Pembelian' },
       ],
     },
     { to: '/app/stock', icon: Archive, label: 'Stok' },
+    { to: '/app/stock/adjustment', icon: Archive, label: 'Penyesuaian Stok' },
     { to: '/app/customers', icon: Users, label: 'Pelanggan' },
+    { to: '/app/customers/payments', icon: DollarSign, label: 'Bayar Piutang' },
     { to: '/app/suppliers', icon: Truck, label: 'Supplier' },
     {
       to: '/app/reports',
@@ -56,6 +62,8 @@ export function Sidebar() {
         { to: '/app/reports/receivable', label: 'Piutang (Credit)' },
       ],
     },
+    { to: '/app/reports/void', icon: XCircle, label: 'Pembatalan' },
+    { to: '/app/expenses', icon: Receipt, label: 'Pengeluaran' },
     { to: '/app/settings', icon: Settings, label: 'Pengaturan' },
   ];
 

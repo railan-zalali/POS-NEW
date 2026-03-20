@@ -1,20 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { db } from '@/lib/db/dexie';
-import type { Customer, Product, ProductUnit } from '@/lib/db/schema';
-
-export interface CartItem {
-  id: string; // Unique ID for cart item (not product ID)
-  product_id: string;
-  product_name: string;
-  unit_id: string;
-  unit_name: string;
-  quantity: number;
-  unit_price: number;
-  subtotal: number;
-  discount_amount: number;
-  notes?: string;
-}
+import type { Customer, Product, ProductUnit, CartItem } from '@/lib/db/schema';
 
 export interface Draft {
   id: string;
@@ -37,6 +24,7 @@ interface POSState {
   payment_method: 'cash' | 'transfer' | 'credit';
   paid_amount: number;
   global_discount: number;
+  tax_rate: number; // Percentage, e.g., 11
   notes: string;
 
   // UI State
@@ -62,6 +50,7 @@ interface POSState {
   // Computed (Helper)
   getTotal: () => number;
   getSubtotal: () => number;
+  getTaxAmount: () => number;
   getChange: () => number;
 }
 
@@ -75,6 +64,7 @@ export const usePOSStore = create<POSState>()(
       payment_method: 'cash',
       paid_amount: 0,
       global_discount: 0,
+      tax_rate: 11, // Default 11% PPN
       notes: '',
       is_processing: false,
 
@@ -161,6 +151,7 @@ export const usePOSStore = create<POSState>()(
           payment_method: 'cash',
           paid_amount: 0,
           global_discount: 0,
+          tax_rate: 11,
           notes: '',
           is_processing: false,
         }),
@@ -193,7 +184,15 @@ export const usePOSStore = create<POSState>()(
 
       getTotal: () => {
         const subtotal = get().getSubtotal();
-        return Math.max(0, subtotal - get().global_discount);
+        const afterDiscount = Math.max(0, subtotal - get().global_discount);
+        const tax = (afterDiscount * get().tax_rate) / 100;
+        return Math.ceil(afterDiscount + tax);
+      },
+
+      getTaxAmount: () => {
+        const subtotal = get().getSubtotal();
+        const afterDiscount = Math.max(0, subtotal - get().global_discount);
+        return (afterDiscount * get().tax_rate) / 100;
       },
 
       getChange: () => {

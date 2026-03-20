@@ -17,6 +17,10 @@ import type {
   StockMovement,
   AppSetting,
   POSDraft,
+  Expense,
+  CustomerPayment,
+  PurchaseReturn,
+  PurchaseReturnItem,
 } from './schema';
 
 export class TokoTaniDB extends Dexie {
@@ -37,14 +41,15 @@ export class TokoTaniDB extends Dexie {
   stock_movements!: Table<StockMovement>;
   app_settings!: Table<AppSetting>;
   pos_drafts!: Table<POSDraft>;
+  expenses!: Table<Expense>;
+  customer_payments!: Table<CustomerPayment>;
+  purchase_returns!: Table<PurchaseReturn>;
+  purchase_return_items!: Table<PurchaseReturnItem>;
 
   constructor() {
     super('TokoTaniDB');
 
-    // Schema definition
-    // Schema definition
-    // Version 2: Added sync_status and updated_at indices
-    this.version(2).stores({
+    this.version(3).stores({
       products: '++id, code, name, category_id, is_active, sync_status, updated_at',
       product_units: '++id, product_id, is_base_unit, barcode, sync_status',
       product_stocks:
@@ -64,6 +69,10 @@ export class TokoTaniDB extends Dexie {
       stock_movements: '++id, product_id, movement_type, reference_id, created_at, sync_status',
       app_settings: '++key, sync_status',
       pos_drafts: '++id, customer_id, name, created_at',
+      expenses: '++id, date, category, payment_method, created_by, sync_status',
+      customer_payments: '++id, payment_number, customer_id, payment_date, sync_status',
+      purchase_returns: '++id, return_number, supplier_id, return_date, status, sync_status',
+      purchase_return_items: '++id, return_id, product_id, sync_status',
     });
   }
 }
