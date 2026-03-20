@@ -35,6 +35,11 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { Expense, ExpenseCategory } from '@/lib/db/schema';
 
+interface FormErrors {
+  description?: string;
+  amount?: string;
+}
+
 const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: 'operational', label: 'Operasional' },
   { value: 'electricity', label: 'Listrik' },
@@ -70,6 +75,7 @@ export default function ExpensePage() {
     receipt_number: '',
     notes: '',
   });
+  const [errors, setErrors] = useState<FormErrors>({});
 
   const expenses = useLiveQuery(() => expenseRepository.getAll(), []) || [];
 
@@ -114,23 +120,21 @@ export default function ExpensePage() {
   };
 
   const handleSubmit = async () => {
+    const newErrors: FormErrors = {};
+
     if (!formData.description.trim()) {
-      toast({
-        title: 'Gagal',
-        description: 'Deskripsi wajib diisi',
-        variant: 'destructive',
-      });
-      return;
+      newErrors.description = 'Deskripsi wajib diisi';
     }
 
     if (formData.amount <= 0) {
-      toast({
-        title: 'Gagal',
-        description: 'Jumlah harus lebih dari 0',
-        variant: 'destructive',
-      });
+      newErrors.amount = 'Jumlah harus lebih dari 0';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
+    setErrors({});
 
     try {
       const expenseData = {
@@ -168,7 +172,7 @@ export default function ExpensePage() {
       try {
         await expenseRepository.delete(id);
         toast({ title: 'Berhasil', description: 'Pengeluaran berhasil dihapus.' });
-      } catch (error) {
+      } catch {
         toast({
           title: 'Gagal',
           description: 'Terjadi kesalahan saat menghapus.',
@@ -322,111 +326,152 @@ export default function ExpensePage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle id="expense-dialog-title">
               {editingExpense ? 'Edit Pengeluaran' : 'Tambah Pengeluaran Baru'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+            aria-labelledby="expense-dialog-title"
+          >
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="expense-date">Tanggal</Label>
+                  <Input
+                    id="expense-date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expense-category">Kategori</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(v) =>
+                      setFormData({ ...formData, category: v as ExpenseCategory })
+                    }
+                  >
+                    <SelectTrigger id="expense-category">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EXPENSE_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat.value} value={cat.value}>
+                          {cat.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label>Tanggal</Label>
+                <Label htmlFor="expense-description">Deskripsi</Label>
                 <Input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  id="expense-description"
+                  value={formData.description}
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    if (errors.description) setErrors({ ...errors, description: undefined });
+                  }}
+                  placeholder="Contoh: Pembelian ATK untuk kantor"
+                  aria-describedby={errors.description ? 'expense-description-error' : undefined}
+                  aria-invalid={!!errors.description}
+                  error={!!errors.description}
+                />
+                {errors.description && (
+                  <p
+                    id="expense-description-error"
+                    role="alert"
+                    className="text-sm font-medium text-destructive"
+                  >
+                    {errors.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="expense-amount">Jumlah (Rp)</Label>
+                  <Input
+                    id="expense-amount"
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) => {
+                      setFormData({ ...formData, amount: parseInt(e.target.value) || 0 });
+                      if (errors.amount) setErrors({ ...errors, amount: undefined });
+                    }}
+                    placeholder="0"
+                    aria-describedby={errors.amount ? 'expense-amount-error' : undefined}
+                    aria-invalid={!!errors.amount}
+                    error={!!errors.amount}
+                  />
+                  {errors.amount && (
+                    <p
+                      id="expense-amount-error"
+                      role="alert"
+                      className="text-sm font-medium text-destructive"
+                    >
+                      {errors.amount}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expense-payment">Metode Bayar</Label>
+                  <Select
+                    value={formData.payment_method}
+                    onValueChange={(v) =>
+                      setFormData({
+                        ...formData,
+                        payment_method: v as 'cash' | 'transfer' | 'credit',
+                      })
+                    }
+                  >
+                    <SelectTrigger id="expense-payment">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Tunai</SelectItem>
+                      <SelectItem value="transfer">Transfer</SelectItem>
+                      <SelectItem value="credit">Kredit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="expense-receipt">No. Bukti (Opsional)</Label>
+                <Input
+                  id="expense-receipt"
+                  value={formData.receipt_number}
+                  onChange={(e) => setFormData({ ...formData, receipt_number: e.target.value })}
+                  placeholder="Contoh: KWITANSI-001"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Kategori</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(v) =>
-                    setFormData({ ...formData, category: v as ExpenseCategory })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EXPENSE_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        {cat.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label>Deskripsi</Label>
-              <Input
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Contoh: Pembelian ATK untuk kantor"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Jumlah (Rp)</Label>
-                <Input
-                  type="number"
-                  value={formData.amount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, amount: parseInt(e.target.value) || 0 })
-                  }
-                  placeholder="0"
+                <Label htmlFor="expense-notes">Catatan (Opsional)</Label>
+                <Textarea
+                  id="expense-notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Tambahkan catatan jika diperlukan..."
+                  rows={2}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Metode Bayar</Label>
-                <Select
-                  value={formData.payment_method}
-                  onValueChange={(v) =>
-                    setFormData({
-                      ...formData,
-                      payment_method: v as 'cash' | 'transfer' | 'credit',
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Tunai</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
-                    <SelectItem value="credit">Kredit</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
-
-            <div className="space-y-2">
-              <Label>No. Bukti (Opsional)</Label>
-              <Input
-                value={formData.receipt_number}
-                onChange={(e) => setFormData({ ...formData, receipt_number: e.target.value })}
-                placeholder="Contoh: KWITANSI-001"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Catatan (Opsional)</Label>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Tambahkan catatan jika diperlukan..."
-                rows={2}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Batal
-            </Button>
-            <Button onClick={handleSubmit}>Simpan</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Batal
+              </Button>
+              <Button type="submit">Simpan</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

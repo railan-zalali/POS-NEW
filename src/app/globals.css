@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    --background: 0 0% 97%; /* #F8F9FA */
-    --foreground: 240 10% 14%; /* #1A1A2E */
+    --background: 0 0% 97%;
+    --foreground: 240 10% 14%;
 
     --card: 0 0% 100%;
     --card-foreground: 240 10% 14%;
@@ -13,27 +13,28 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 14%;
 
-    /* Primary: #2D6A4F */
-    --primary: 153 40% 30%;
+    /* Primary: #2D6A4F - Darker for better contrast (4.5:1+) */
+    --primary: 153 42% 24%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary: #52B788 */
     --secondary: 152 43% 52%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Accent: #F77F00 */
-    --accent: 31 100% 48%;
+    /* Accent: #F77F00 - Darker for better contrast on white */
+    --accent: 31 100% 40%;
     --accent-foreground: 0 0% 100%;
 
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: 215.4 16.3% 35%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Destructive: Improved red for accessibility */
+    --destructive: 0 72% 41%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 153 40% 30%;
+    --border: 214.3 31.8% 86%;
+    --input: 214.3 31.8% 86%;
+    --ring: 153 42% 24%;
 
     --radius: 0.5rem;
   }
@@ -48,24 +49,24 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 153 40% 30%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 153 42% 40%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 152 43% 52%;
     --secondary-foreground: 210 40% 98%;
 
-    --accent: 31 100% 48%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 31 100% 55%;
+    --accent-foreground: 0 0% 100%;
 
     --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted-foreground: 215 20.2% 65%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 45%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 153 40% 30%;
+    --ring: 153 42% 40%;
   }
 }
 
@@ -73,8 +74,151 @@
   * {
     @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased overflow-x-hidden;
+  }
+
+  /* Improved focus indicators for keyboard navigation - WCAG 2.1 */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Remove default focus for mouse users, keep for keyboard */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Better text selection */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.2);
+    color: hsl(var(--foreground));
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Screen reader only class */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* Skip to main content link - WCAG 2.4.1 */
+  .skip-link {
+    position: absolute;
+    top: -100%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    padding: 1rem 2rem;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    font-weight: 600;
+    border-radius: 0 0 0.5rem 0.5rem;
+    transition: top 0.2s ease;
+  }
+
+  .skip-link:focus {
+    top: 0;
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Better heading hierarchy */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold tracking-tight;
+  }
+
+  /* Improved link styling */
+  a {
+    @apply underline-offset-2;
+  }
+
+  a:not(:hover) {
+    text-decoration-thickness: 1px;
+  }
+
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  /* Form accessibility improvements */
+  input:invalid:not(:placeholder-shown),
+  textarea:invalid:not(:placeholder-shown),
+  select:invalid:not(:placeholder-shown) {
+    border-color: hsl(var(--destructive));
+  }
+
+  input:disabled,
+  textarea:disabled,
+  select:disabled,
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  /* Table accessibility */
+  table {
+    caption-side: bottom;
+  }
+
+  caption {
+    @apply text-sm text-muted-foreground mt-4 px-2;
+  }
+
+  /* List accessibility */
+  ul[role='list'],
+  ol[role='list'] {
+    list-style: none;
   }
 }
 
@@ -82,22 +226,43 @@
   .glass {
     @apply bg-white/10 backdrop-blur-lg border border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)];
   }
+
   .glass-dark {
     @apply bg-black/40 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];
   }
+
   .text-glow {
     text-shadow:
       0 0 10px rgba(82, 183, 136, 0.5),
       0 0 20px rgba(82, 183, 136, 0.3);
   }
+
   .animate-blob {
     animation: blob 7s infinite;
   }
+
   .animation-delay-2000 {
     animation-delay: 2s;
   }
+
   .animation-delay-4000 {
     animation-delay: 4s;
+  }
+
+  /* Focus ring utilities */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  /* High contrast mode support */
+  @media (forced-colors: active) {
+    .btn {
+      border: 2px solid transparent;
+    }
+
+    .btn:hover {
+      border-color: ButtonText;
+    }
   }
 }
 
@@ -113,5 +278,20 @@
   }
   100% {
     transform: translate(0px, 0px) scale(1);
+  }
+}
+
+/* Print styles for accessibility */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  a[href]::after {
+    content: ' (' attr(href) ')';
+  }
+
+  abbr[title]::after {
+    content: ' (' attr(title) ')';
   }
 }
