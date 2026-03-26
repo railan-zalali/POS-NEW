@@ -211,10 +211,10 @@ export function ProductFormDialog({
       onSuccess();
       onOpenChange(false);
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Gagal',
-        description: 'Terjadi kesalahan saat menyimpan produk',
+        description:
+          error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan produk',
         variant: 'destructive',
       });
     } finally {

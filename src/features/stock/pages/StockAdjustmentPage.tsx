@@ -193,10 +193,10 @@ export default function StockAdjustmentPage() {
       setSelectedProduct(null);
       setAdjustmentForm({ adjustment_type: 'add', quantity: 0, reason: '' });
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Gagal',
-        description: 'Terjadi kesalahan saat menyimpan penyesuaian',
+        description:
+          error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan penyesuaian',
         variant: 'destructive',
       });
     }

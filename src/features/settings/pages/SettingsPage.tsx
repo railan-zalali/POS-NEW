@@ -83,9 +83,11 @@ export default function SettingsPage() {
         key,
         value,
         description: `Settings for ${sectionName}`,
+        updated_at: new Date(),
+        sync_status: 'pending',
       });
       toast({ title: 'Berhasil', description: `Pengaturan ${sectionName} disimpan.` });
-    } catch (_error) {
+    } catch {
       toast({ title: 'Gagal', description: 'Gagal menyimpan pengaturan.', variant: 'destructive' });
     }
   };
@@ -112,10 +114,10 @@ export default function SettingsPage() {
 
       toast({ title: 'Backup Berhasil', description: 'File backup telah diunduh.' });
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Gagal Backup',
-        description: 'Terjadi kesalahan saat membuat backup.',
+        description:
+          error instanceof Error ? error.message : 'Terjadi kesalahan saat membuat backup.',
         variant: 'destructive',
       });
     }
@@ -126,7 +128,7 @@ export default function SettingsPage() {
       try {
         await db.delete();
         window.location.reload();
-      } catch (_error) {
+      } catch {
         toast({
           title: 'Gagal Reset',
           description: 'Gagal menghapus database.',
@@ -153,7 +155,7 @@ export default function SettingsPage() {
       // Refresh list
       const users = await userRepository.getAll();
       setAllUsers(users);
-    } catch (_error) {
+    } catch {
       toast({
         title: 'Gagal',
         description: 'Terjadi kesalahan saat menambah pengguna.',
@@ -169,7 +171,7 @@ export default function SettingsPage() {
       toast({ title: 'Berhasil', description: `Status ${user.username} diperbarui.` });
       const users = await userRepository.getAll();
       setAllUsers(users);
-    } catch (_error) {
+    } catch {
       toast({ title: 'Gagal', description: 'Gagal memperbarui status.', variant: 'destructive' });
     }
   };
@@ -478,7 +480,7 @@ export default function SettingsPage() {
                         await seedDummyData();
                         toast({ title: 'Berhasil', description: 'Data dummy telah dibuat.' });
                         window.location.reload();
-                      } catch (_err) {
+                      } catch {
                         toast({
                           title: 'Gagal',
                           description: 'Gagal membuat data dummy.',
@@ -561,12 +563,23 @@ export default function SettingsPage() {
                     <Button
                       onClick={async () => {
                         try {
-                          await syncEngine.syncAll();
+                          const results = await syncEngine.syncAll();
+                          const failures = results.filter((result) => !result.success);
+
+                          if (failures.length > 0) {
+                            toast({
+                              title: 'Sync Sebagian Gagal',
+                              description: `${failures.length} tabel gagal disinkronkan.`,
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+
                           toast({
                             title: 'Sync Berhasil',
                             description: 'Semua data telah disinkronkan ke cloud.',
                           });
-                        } catch (_err) {
+                        } catch {
                           toast({
                             title: 'Sync Gagal',
                             description: 'Gagal menyinkronkan data.',
@@ -589,7 +602,7 @@ export default function SettingsPage() {
                   <ul className="space-y-3">
                     {[
                       'Pastikan koneksi internet stabil saat sinkronisasi manual.',
-                      'Sinkronisasi mencakup produk, transaksi, pelanggan, dan pengaturan.',
+                      'Sinkronisasi mencakup master data, stok, transaksi, pengeluaran, piutang, retur, pengguna, dan pengaturan.',
                       'Data yang belum terkirim ditandai dengan label "Pending" di sidebar.',
                       'Data di cloud terenkripsi dan aman sebagai cadangan jika perangkat rusak.',
                     ].map((item, i) => (

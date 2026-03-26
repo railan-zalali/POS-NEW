@@ -1,13 +1,23 @@
 import { db } from './dexie';
 import type { Customer } from './schema';
+import { coerceEntityId } from '@/lib/entityId';
+import { queueDeleteInstruction } from '@/lib/supabase/deleteOutbox';
 
 export const customerRepository = {
   async getAll() {
     return await db.customers.toArray();
   },
 
-  async getById(id: string) {
-    return await db.customers.get(id);
+  async getPaginated(offset: number = 0, limit: number = 50) {
+    return await db.customers.orderBy('name').offset(offset).limit(limit).toArray();
+  },
+
+  async getTotalCount() {
+    return await db.customers.count();
+  },
+
+  async getById(id: string | number) {
+    return await db.customers.get(coerceEntityId(id));
   },
 
   async create(customer: Omit<Customer, 'id'>) {
@@ -19,16 +29,24 @@ export const customerRepository = {
     } as Customer);
   },
 
-  async update(id: string, updates: Partial<Customer>) {
-    return await db.customers.update(id, {
+  async update(id: string | number, updates: Partial<Customer>) {
+    return await db.customers.update(coerceEntityId(id), {
       ...updates,
       updated_at: new Date(),
       sync_status: 'pending',
     });
   },
 
-  async delete(id: string) {
-    return await db.customers.delete(id);
+  async delete(id: string | number) {
+    const resolvedId = coerceEntityId(id);
+    if (resolvedId == null) {
+      return;
+    }
+
+    return await db.transaction('rw', [db.customers, db.app_settings], async () => {
+      await queueDeleteInstruction('customers', resolvedId);
+      return await db.customers.delete(resolvedId);
+    });
   },
 
   async getByPhone(phone: string) {

@@ -34,6 +34,7 @@ import { Search, Plus, RotateCcw, Package, Truck, Calendar, Eye } from 'lucide-r
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { PurchaseReturn, ReturnReason } from '@/lib/db/schema';
+import { sameEntityId, toEntityIdString } from '@/lib/entityId';
 
 const RETURN_REASONS: { value: ReturnReason; label: string }[] = [
   { value: 'defective', label: 'Barang Cacat' },
@@ -67,13 +68,13 @@ export default function PurchaseReturnPage() {
     (r) =>
       r.return_number.toLowerCase().includes(search.toLowerCase()) ||
       suppliers
-        .find((s) => s.id === r.supplier_id)
+        .find((s) => sameEntityId(s.id, r.supplier_id))
         ?.name.toLowerCase()
         .includes(search.toLowerCase()),
   );
 
   const getSupplierName = (supplierId: string) => {
-    return suppliers.find((s) => s.id === supplierId)?.name || '-';
+    return suppliers.find((s) => sameEntityId(s.id, supplierId))?.name || '-';
   };
 
   const handleOpenDialog = () => {
@@ -133,10 +134,10 @@ export default function PurchaseReturnPage() {
 
       setIsDialogOpen(false);
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Gagal',
-        description: 'Terjadi kesalahan saat menyimpan retur',
+        description:
+          error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan retur',
         variant: 'destructive',
       });
     }
@@ -237,7 +238,10 @@ export default function PurchaseReturnPage() {
                     {suppliers
                       .filter((s) => s.is_active)
                       .map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.id!}>
+                        <SelectItem
+                          key={toEntityIdString(supplier.id)}
+                          value={toEntityIdString(supplier.id)}
+                        >
                           {supplier.name}
                         </SelectItem>
                       ))}
@@ -325,7 +329,7 @@ export default function PurchaseReturnPage() {
                     </TableRow>
                   ) : (
                     filteredReturns.map((ret) => (
-                      <TableRow key={ret.id}>
+                      <TableRow key={toEntityIdString(ret.id)}>
                         <TableCell className="font-mono font-bold">{ret.return_number}</TableCell>
                         <TableCell className="whitespace-nowrap">
                           {format(new Date(ret.return_date), 'dd MMM yyyy', { locale: id })}

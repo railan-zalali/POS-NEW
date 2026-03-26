@@ -1,3 +1,4 @@
+import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import type { PermissionKey } from '@/lib/db/schema';
 
@@ -31,10 +32,7 @@ export function RequirePermission({ permission, children, redirectTo }: RequireP
   }
 
   if (!hasPermission(permission)) {
-    if (redirectTo) {
-      window.location.href = redirectTo;
-    }
-    return null;
+    return <Navigate to={redirectTo || '/app'} replace />;
   }
 
   return <>{children}</>;

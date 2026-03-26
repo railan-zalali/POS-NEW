@@ -35,6 +35,7 @@ import { supplierRepository } from '@/lib/db/supplierRepository';
 import { purchaseOrderRepository } from '@/lib/db/purchaseOrderRepository';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { sameEntityId, toEntityIdString } from '@/lib/entityId';
 
 const poItemSchema = z.object({
   product_id: z.string().min(1, 'Pilih produk'),
@@ -97,11 +98,11 @@ export function POFormDialog({ open, onOpenChange }: POFormDialogProps) {
         if (field === 'product_id') {
           const productId = value.items?.[index]?.product_id;
           if (productId) {
-            const productUnits = allUnits.filter((u) => u.product_id === productId);
+            const productUnits = allUnits.filter((u) => sameEntityId(u.product_id, productId));
             const baseUnit = productUnits.find((u) => u.is_base_unit) || productUnits[0];
             if (baseUnit) {
               const currentQty = form.getValues(`items.${index}.quantity_ordered`) || 1;
-              form.setValue(`items.${index}.product_unit_id`, baseUnit.id!);
+              form.setValue(`items.${index}.product_unit_id`, toEntityIdString(baseUnit.id));
               form.setValue(`items.${index}.unit_price`, baseUnit.purchase_price);
               form.setValue(`items.${index}.subtotal`, baseUnit.purchase_price * currentQty);
             }
@@ -112,7 +113,7 @@ export function POFormDialog({ open, onOpenChange }: POFormDialogProps) {
           form.setValue(`items.${index}.subtotal`, qty * price);
         } else if (field === 'product_unit_id') {
           const unitId = value.items?.[index]?.product_unit_id;
-          const unit = allUnits.find((u) => u.id === unitId);
+          const unit = allUnits.find((u) => sameEntityId(u.id, unitId));
           if (unit) {
             const currentQty = form.getValues(`items.${index}.quantity_ordered`) || 1;
             form.setValue(`items.${index}.unit_price`, unit.purchase_price);
@@ -148,7 +149,7 @@ export function POFormDialog({ open, onOpenChange }: POFormDialogProps) {
       toast({ title: 'Berhasil', description: 'Purchase Order berhasil dibuat.' });
       onOpenChange(false);
       form.reset();
-    } catch (_error) {
+    } catch {
       toast({
         title: 'Gagal',
         description: 'Terjadi kesalahan saat membuat PO.',
@@ -175,7 +176,7 @@ export function POFormDialog({ open, onOpenChange }: POFormDialogProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Supplier</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih Supplier" />
@@ -183,7 +184,7 @@ export function POFormDialog({ open, onOpenChange }: POFormDialogProps) {
                       </FormControl>
                       <SelectContent>
                         {suppliers.map((s) => (
-                          <SelectItem key={s.id} value={s.id!}>
+                          <SelectItem key={toEntityIdString(s.id)} value={toEntityIdString(s.id)}>
                             {s.name}
                           </SelectItem>
                         ))}
@@ -250,10 +251,7 @@ export function POFormDialog({ open, onOpenChange }: POFormDialogProps) {
                             control={form.control}
                             name={`items.${index}.product_id`}
                             render={({ field: subField }) => (
-                              <Select
-                                onValueChange={subField.onChange}
-                                defaultValue={subField.value}
-                              >
+                              <Select onValueChange={subField.onChange} value={subField.value}>
                                 <FormControl>
                                   <SelectTrigger className="border-0 shadow-none focus:ring-0">
                                     <SelectValue placeholder="Pilih Produk" />
@@ -261,7 +259,10 @@ export function POFormDialog({ open, onOpenChange }: POFormDialogProps) {
                                 </FormControl>
                                 <SelectContent>
                                   {products.map((p) => (
-                                    <SelectItem key={p.id} value={p.id!}>
+                                    <SelectItem
+                                      key={toEntityIdString(p.id)}
+                                      value={toEntityIdString(p.id)}
+                                    >
                                       {p.name}
                                     </SelectItem>
                                   ))}
@@ -286,12 +287,17 @@ export function POFormDialog({ open, onOpenChange }: POFormDialogProps) {
                                 </FormControl>
                                 <SelectContent>
                                   {allUnits
-                                    .filter(
-                                      (u) =>
-                                        u.product_id === form.watch(`items.${index}.product_id`),
+                                    .filter((u) =>
+                                      sameEntityId(
+                                        u.product_id,
+                                        form.watch(`items.${index}.product_id`),
+                                      ),
                                     )
                                     .map((u) => (
-                                      <SelectItem key={u.id} value={u.id!}>
+                                      <SelectItem
+                                        key={toEntityIdString(u.id)}
+                                        value={toEntityIdString(u.id)}
+                                      >
                                         {u.unit_name}
                                       </SelectItem>
                                     ))}

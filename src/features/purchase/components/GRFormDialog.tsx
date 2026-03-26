@@ -36,6 +36,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db/dexie';
 import type { PurchaseOrderItem, Product, ProductUnit } from '@/lib/db/schema';
+import { sameEntityId, toEntityIdString } from '@/lib/entityId';
 
 const grItemSchema = z.object({
   po_item_id: z.string(),
@@ -100,11 +101,11 @@ export function GRFormDialog({ open, onOpenChange }: GRFormDialogProps) {
         const units: ProductUnit[] = await db.product_units.toArray();
 
         const grItems = items.map((item) => {
-          const product = products.find((p) => p.id === item.product_id);
-          const unit = units.find((u) => u.id === item.product_unit_id);
+          const product = products.find((p) => sameEntityId(p.id, item.product_id));
+          const unit = units.find((u) => sameEntityId(u.id, item.product_unit_id));
           return {
-            po_item_id: item.id!,
-            product_id: item.product_id,
+            po_item_id: toEntityIdString(item.id),
+            product_id: toEntityIdString(item.product_id),
             product_name: product?.name || 'Unknown',
             unit_name: unit?.unit_name || 'Unknown',
             qty_ordered: item.quantity_ordered,
@@ -171,10 +172,9 @@ export function GRFormDialog({ open, onOpenChange }: GRFormDialogProps) {
       form.reset();
       setSelectedPoId('');
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Gagal',
-        description: 'Gagal mencatat penerimaan barang.',
+        description: error instanceof Error ? error.message : 'Gagal mencatat penerimaan barang.',
         variant: 'destructive',
       });
     } finally {
@@ -212,7 +212,7 @@ export function GRFormDialog({ open, onOpenChange }: GRFormDialogProps) {
                       </FormControl>
                       <SelectContent>
                         {activePOs.map((po) => (
-                          <SelectItem key={po.id} value={po.id!}>
+                          <SelectItem key={toEntityIdString(po.id)} value={toEntityIdString(po.id)}>
                             {po.po_number} ({format(new Date(po.order_date), 'dd/MM/yy')})
                           </SelectItem>
                         ))}

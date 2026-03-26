@@ -195,6 +195,28 @@ describe('usePOSStore', () => {
     });
 
     expect(result.current.payment_method).toBe('credit');
+    expect(result.current.paid_amount).toBe(0);
+    expect(result.current.due_date).toBeTruthy();
+  });
+
+  it('should clear transfer and credit metadata when switching payment method', () => {
+    const { result } = renderHook(() => usePOSStore());
+
+    act(() => {
+      result.current.setPaymentReference('TRX-001');
+      result.current.setDueDate('2026-04-30');
+      result.current.setPaymentMethod('transfer');
+    });
+
+    expect(result.current.payment_method).toBe('transfer');
+    expect(result.current.due_date).toBeNull();
+
+    act(() => {
+      result.current.setPaymentMethod('cash');
+    });
+
+    expect(result.current.payment_reference).toBe('');
+    expect(result.current.due_date).toBeNull();
   });
 
   it('should calculate tax correctly with default 11% rate', () => {

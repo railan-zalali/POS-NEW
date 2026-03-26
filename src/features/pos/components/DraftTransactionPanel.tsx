@@ -55,8 +55,8 @@ export function DraftTransactionPanel() {
     resetTransaction();
   };
 
-  const handleLoadDraft = (items: CartItem[], customerId?: string) => {
-    loadDraft(items, customerId);
+  const handleLoadDraft = async (items: CartItem[], customerId?: string, notes?: string) => {
+    await loadDraft(items, customerId, notes);
     toast({
       title: 'Draft Dimuat',
       description: 'Draft transaksi berhasil dimuat kembali.',
@@ -119,7 +119,7 @@ export function DraftTransactionPanel() {
                   <div
                     key={draft.id}
                     className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => handleLoadDraft(draft.items, draft.customer_id)}
+                    onClick={() => handleLoadDraft(draft.items, draft.customer_id, draft.notes)}
                   >
                     <div className="flex justify-between items-start">
                       <div>

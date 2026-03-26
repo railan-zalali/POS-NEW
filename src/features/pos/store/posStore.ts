@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { db } from '@/lib/db/dexie';
 import type { Customer, Product, ProductUnit, CartItem } from '@/lib/db/schema';
+import { coerceEntityId } from '@/lib/entityId';
 
 export interface Draft {
   id: string;
@@ -23,6 +24,8 @@ interface POSState {
   // Payment State
   payment_method: 'cash' | 'transfer' | 'credit';
   paid_amount: number;
+  payment_reference: string;
+  due_date: string | null;
   global_discount: number;
   tax_rate: number; // Percentage, e.g., 11
   notes: string;
@@ -38,13 +41,15 @@ interface POSState {
   setCustomer: (customer: Customer | null) => void;
   setPaymentMethod: (method: 'cash' | 'transfer' | 'credit') => void;
   setPaidAmount: (amount: number) => void;
+  setPaymentReference: (reference: string) => void;
+  setDueDate: (dueDate: string | null) => void;
   setGlobalDiscount: (discount: number) => void;
   setNotes: (notes: string) => void;
   resetTransaction: () => void;
 
   // Draft Actions
   saveDraft: (name?: string) => Promise<void>;
-  loadDraft: (items: CartItem[], customerId?: string) => void;
+  loadDraft: (items: CartItem[], customerId?: string, notes?: string) => void;
   // removeDraft is now handled directly by components via Dexie
 
   // Computed (Helper)
@@ -63,6 +68,8 @@ export const usePOSStore = create<POSState>()(
       cart: [],
       payment_method: 'cash',
       paid_amount: 0,
+      payment_reference: '',
+      due_date: null,
       global_discount: 0,
       tax_rate: 11, // Default 11% PPN
       notes: '',
@@ -137,8 +144,37 @@ export const usePOSStore = create<POSState>()(
       },
 
       setCustomer: (customer) => set({ customer }),
-      setPaymentMethod: (method) => set({ payment_method: method }),
+      setPaymentMethod: (method) =>
+        set((state) => {
+          const nextState: Partial<POSState> = {
+            payment_method: method,
+          };
+
+          if (method === 'transfer') {
+            nextState.paid_amount = get().getTotal();
+            nextState.due_date = null;
+          }
+
+          if (method === 'credit') {
+            const nextDueDate = state.due_date
+              ? state.due_date
+              : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+            nextState.paid_amount = 0;
+            nextState.payment_reference = '';
+            nextState.due_date = nextDueDate;
+          }
+
+          if (method === 'cash') {
+            nextState.payment_reference = '';
+            nextState.due_date = null;
+          }
+
+          return nextState as POSState;
+        }),
       setPaidAmount: (amount) => set({ paid_amount: amount }),
+      setPaymentReference: (reference) => set({ payment_reference: reference }),
+      setDueDate: (dueDate) => set({ due_date: dueDate }),
       setGlobalDiscount: (discount) => set({ global_discount: discount }),
       setNotes: (notes) => set({ notes }),
 
@@ -150,6 +186,8 @@ export const usePOSStore = create<POSState>()(
           cart: [],
           payment_method: 'cash',
           paid_amount: 0,
+          payment_reference: '',
+          due_date: null,
           global_discount: 0,
           tax_rate: 11,
           notes: '',
@@ -172,9 +210,17 @@ export const usePOSStore = create<POSState>()(
         });
       },
 
-      loadDraft: (items) => {
+      loadDraft: async (items, customerId, notes) => {
+        const customer = customerId ? await db.customers.get(coerceEntityId(customerId)) : null;
+
         set({
           cart: items,
+          customer: customer ?? null,
+          payment_method: 'cash',
+          paid_amount: 0,
+          payment_reference: '',
+          due_date: null,
+          notes: notes ?? '',
         });
       },
 
@@ -206,6 +252,8 @@ export const usePOSStore = create<POSState>()(
         cart: state.cart,
         customer: state.customer,
         payment_method: state.payment_method,
+        payment_reference: state.payment_reference,
+        due_date: state.due_date,
         notes: state.notes,
       }),
     },

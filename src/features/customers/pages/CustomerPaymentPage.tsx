@@ -128,6 +128,7 @@ export default function CustomerPaymentPage() {
         const newOutstanding = selectedCustomer.outstanding_credit - paymentForm.amount;
         await db.customers.update(selectedCustomer.id!, {
           outstanding_credit: Math.max(0, newOutstanding),
+          updated_at: new Date(),
           sync_status: 'pending',
         });
       });
@@ -140,10 +141,10 @@ export default function CustomerPaymentPage() {
       setIsPaymentDialogOpen(false);
       setSelectedCustomer(null);
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Gagal',
-        description: 'Terjadi kesalahan saat menyimpan pembayaran',
+        description:
+          error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan pembayaran',
         variant: 'destructive',
       });
     }

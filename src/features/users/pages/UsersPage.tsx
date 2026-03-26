@@ -63,7 +63,7 @@ export default function UsersPage() {
       username: user.username,
       full_name: user.full_name,
       role_id: user.role_id,
-      pin: user.pin || '',
+      pin: '',
       is_active: user.is_active,
     });
     setIsDialogOpen(true);
@@ -93,14 +93,25 @@ export default function UsersPage() {
 
     try {
       if (editingUser) {
-        await userRepository.update(editingUser.id!, formData);
+        const updatePayload: Partial<UserType> = {
+          username: formData.username,
+          full_name: formData.full_name,
+          role_id: formData.role_id,
+          is_active: formData.is_active,
+        };
+
+        if (formData.pin.trim()) {
+          updatePayload.pin = formData.pin;
+        }
+
+        await userRepository.update(editingUser.id!, updatePayload);
         toast({ title: 'Berhasil', description: 'Pengguna berhasil diperbarui.' });
       } else {
         await userRepository.create(formData);
         toast({ title: 'Berhasil', description: 'Pengguna baru berhasil dibuat.' });
       }
       setIsDialogOpen(false);
-    } catch (_error) {
+    } catch {
       toast({
         title: 'Gagal',
         description: 'Terjadi kesalahan saat menyimpan data.',
@@ -267,7 +278,7 @@ export default function UsersPage() {
                 value={formData.pin}
                 onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
                 className="col-span-3"
-                placeholder="6 digit angka"
+                placeholder={editingUser ? 'Kosongkan jika tidak diubah' : '6 digit angka'}
               />
             </div>
           </div>

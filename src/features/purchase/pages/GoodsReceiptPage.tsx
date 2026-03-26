@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { GRFormDialog } from '../components/GRFormDialog';
+import { sameEntityId, toEntityIdString } from '@/lib/entityId';
 
 export default function GoodsReceiptPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -26,7 +27,7 @@ export default function GoodsReceiptPage() {
   const pos = useLiveQuery(() => purchaseOrderRepository.getAll()) || [];
 
   const filteredReceipts = receipts.filter((gr) => {
-    const po = pos.find((p) => p.id === gr.po_id);
+    const po = pos.find((p) => sameEntityId(p.id, gr.po_id));
     const searchLower = search.toLowerCase();
     return (
       gr.gr_number.toLowerCase().includes(searchLower) ||
@@ -101,9 +102,9 @@ export default function GoodsReceiptPage() {
               </TableRow>
             ) : (
               filteredReceipts.map((gr) => {
-                const po = pos.find((p) => p.id === gr.po_id);
+                const po = pos.find((p) => sameEntityId(p.id, gr.po_id));
                 return (
-                  <TableRow key={gr.id}>
+                  <TableRow key={toEntityIdString(gr.id)}>
                     <TableCell className="font-medium">{gr.gr_number}</TableCell>
                     <TableCell>{po?.po_number || 'Tanpa PO'}</TableCell>
                     <TableCell>

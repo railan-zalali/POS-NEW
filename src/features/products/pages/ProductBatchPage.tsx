@@ -123,10 +123,10 @@ export default function ProductBatchPage() {
 
       navigate('/products');
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Gagal',
-        description: 'Terjadi kesalahan saat menyimpan data batch.',
+        description:
+          error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan data batch.',
         variant: 'destructive',
       });
     } finally {

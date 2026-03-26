@@ -2,9 +2,18 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { userRepository } from '@/lib/db/userRepository';
 import type { User, Role, PermissionKey } from '@/lib/db/schema';
+import { isHashedPin } from '@/lib/security/pin';
+
+type AuthUser = Omit<User, 'pin'> & { role?: Role };
+
+const toAuthUser = (user: User, role?: Role): AuthUser => {
+  const authUser = { ...user, role } as AuthUser & Partial<Pick<User, 'pin'>>;
+  delete authUser.pin;
+  return authUser;
+};
 
 interface AuthState {
-  user: (User & { role?: Role }) | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -33,7 +42,9 @@ export const useAuthStore = create<AuthState>()(
             return false;
           }
 
-          if (user.pin !== pin) {
+          const isPinValid = await userRepository.verifyPin(user.pin, pin);
+
+          if (!isPinValid) {
             set({ error: 'PIN salah', isLoading: false });
             return false;
           }
@@ -45,25 +56,50 @@ export const useAuthStore = create<AuthState>()(
 
           const role = await userRepository.getRoleById(user.role_id);
 
+          if (!isHashedPin(user.pin)) {
+            await userRepository.update(user.id!, { pin });
+          }
+
+          await userRepository.update(user.id!, { last_login: new Date() });
+
           set({
-            user: { ...user, role: role || undefined },
+            user: toAuthUser(user, role || undefined),
             isAuthenticated: true,
             isLoading: false,
           });
 
           return true;
-        } catch (err) {
-          console.error(err);
+        } catch {
           set({ error: 'Terjadi kesalahan saat login', isLoading: false });
           return false;
         }
       },
 
       logout: () => {
-        set({ user: null, isAuthenticated: false });
+        set({ user: null, isAuthenticated: false, error: null });
       },
 
-      checkAuth: async () => {},
+      checkAuth: async () => {
+        const state = get();
+
+        if (!state.user?.id || !state.isAuthenticated) {
+          return;
+        }
+
+        const currentUser = await userRepository.getById(state.user.id);
+
+        if (!currentUser || !currentUser.is_active) {
+          set({ user: null, isAuthenticated: false, error: null });
+          return;
+        }
+
+        const role = await userRepository.getRoleById(currentUser.role_id);
+
+        set({
+          user: toAuthUser(currentUser, role || undefined),
+          isAuthenticated: true,
+        });
+      },
 
       seedData: async () => {
         await userRepository.seedDefaultData();

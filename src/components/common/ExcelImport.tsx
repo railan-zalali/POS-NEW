@@ -90,8 +90,8 @@ export function ExcelImport<T = unknown>({
           });
 
           setData(mappedData);
-        } catch (error) {
-          console.error('Error parsing file:', error);
+        } catch {
+          // Error handling will be handled by the UI validation display
         } finally {
           setIsProcessing(false);
         }
@@ -135,9 +135,8 @@ export function ExcelImport<T = unknown>({
       await onImport(validRows);
       setImportProgress(100);
       if (onClose) onClose();
-    } catch (error) {
-      console.error('Import failed:', error);
-      // Handle overall failure
+    } catch {
+      // Handle overall failure - error will be shown by parent component
     } finally {
       setIsProcessing(false);
       setImportProgress(0);

@@ -9,6 +9,7 @@ const statusBadgeVariants = cva(
       status: {
         synced: 'border-transparent bg-green-100 text-green-800 hover:bg-green-200',
         pending: 'border-transparent bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
+        conflict: 'border-transparent bg-amber-100 text-amber-800 hover:bg-amber-200',
         error: 'border-transparent bg-red-100 text-red-800 hover:bg-red-200',
         offline: 'border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200',
         syncing: 'border-transparent bg-blue-100 text-blue-800 hover:bg-blue-200',
@@ -22,7 +23,7 @@ const statusBadgeVariants = cva(
 
 export interface SyncStatusBadgeProps
   extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof statusBadgeVariants> {
-  status: 'synced' | 'pending' | 'error' | 'offline' | 'syncing';
+  status: 'synced' | 'pending' | 'conflict' | 'error' | 'offline' | 'syncing';
   label?: string;
 }
 
@@ -30,6 +31,7 @@ export function SyncStatusBadge({ className, status, label, ...props }: SyncStat
   const defaultLabels = {
     synced: 'Tersinkronisasi',
     pending: 'Menunggu Sync',
+    conflict: 'Konflik Sync',
     error: 'Gagal Sync',
     offline: 'Offline',
     syncing: 'Sedang Sync...',
@@ -41,6 +43,7 @@ export function SyncStatusBadge({ className, status, label, ...props }: SyncStat
         className={cn('h-2 w-2 rounded-full', {
           'bg-green-500': status === 'synced',
           'bg-yellow-500': status === 'pending',
+          'bg-amber-500': status === 'conflict',
           'bg-red-500': status === 'error',
           'bg-gray-500': status === 'offline',
           'bg-blue-500': status === 'syncing',

@@ -6,6 +6,35 @@ import type {
   ProductStock,
   PurchaseOrderItem,
 } from './schema';
+import { coerceEntityId, sameEntityId } from '@/lib/entityId';
+
+async function resolvePurchaseOrderKey(id: string | number) {
+  const directMatch = await db.purchase_orders.get(coerceEntityId(id));
+  if (directMatch?.id != null) {
+    return directMatch.id;
+  }
+
+  const fallbackMatch = await db.purchase_orders
+    .toArray()
+    .then((purchaseOrders) =>
+      purchaseOrders.find((purchaseOrder) => sameEntityId(purchaseOrder.id, id)),
+    );
+
+  return fallbackMatch?.id;
+}
+
+async function resolvePurchaseOrderItemKey(id: string | number) {
+  const directMatch = await db.purchase_order_items.get(coerceEntityId(id));
+  if (directMatch?.id != null) {
+    return directMatch.id;
+  }
+
+  const fallbackMatch = await db.purchase_order_items
+    .toArray()
+    .then((items) => items.find((item) => sameEntityId(item.id, id)));
+
+  return fallbackMatch?.id;
+}
 
 export const goodsReceiptRepository = {
   async getAll() {
@@ -32,9 +61,15 @@ export const goodsReceiptRepository = {
         db.product_stocks,
       ],
       async () => {
+        const resolvedPoId = await resolvePurchaseOrderKey(gr.po_id);
+        if (resolvedPoId == null) {
+          throw new Error('Purchase Order tidak ditemukan.');
+        }
+
         // 1. Create Goods Receipt
         const grId = await db.goods_receipts.add({
           ...gr,
+          po_id: resolvedPoId,
           received_date: new Date(),
           created_at: new Date(),
           updated_at: new Date(),
@@ -43,10 +78,16 @@ export const goodsReceiptRepository = {
 
         // 2. Create Items & Update Stock
         for (const item of items) {
+          const resolvedPoItemId = await resolvePurchaseOrderItemKey(item.po_item_id);
+          if (resolvedPoItemId == null) {
+            throw new Error('Item Purchase Order tidak ditemukan.');
+          }
+
           // Save GR Item
           await db.goods_receipt_items.add({
             ...item,
             gr_id: grId,
+            po_item_id: resolvedPoItemId,
             created_at: new Date(),
             updated_at: new Date(),
             sync_status: 'pending',
@@ -55,7 +96,7 @@ export const goodsReceiptRepository = {
           // Update Stock (Add new batch)
           if (item.quantity_received > 0 && item.condition === 'good') {
             // Fetch PO Item to get unit details and price
-            const poItem = await db.purchase_order_items.get(item.po_item_id);
+            const poItem = await db.purchase_order_items.get(resolvedPoItemId);
 
             if (poItem) {
               const unit = await db.product_units.get(poItem.product_unit_id);
@@ -69,7 +110,7 @@ export const goodsReceiptRepository = {
                 expire_date: item.expire_date,
                 quantity: item.quantity_received * factor,
                 received_date: new Date(),
-                purchase_order_item_id: item.po_item_id,
+                purchase_order_item_id: resolvedPoItemId,
                 purchase_price: poItem.unit_price / factor,
                 created_at: new Date(),
                 updated_at: new Date(),
@@ -77,7 +118,7 @@ export const goodsReceiptRepository = {
               } as ProductStock);
 
               // Update PO Item quantity_received
-              await db.purchase_order_items.update(item.po_item_id, {
+              await db.purchase_order_items.update(resolvedPoItemId, {
                 quantity_received: (poItem.quantity_received || 0) + item.quantity_received,
                 updated_at: new Date(),
                 sync_status: 'pending',
@@ -87,7 +128,13 @@ export const goodsReceiptRepository = {
         }
 
         // 3. Update PO Status
-        const poItems = await db.purchase_order_items.where('po_id').equals(gr.po_id).toArray();
+        const poItems = await db.purchase_order_items
+          .toArray()
+          .then((purchaseOrderItems) =>
+            purchaseOrderItems.filter((purchaseOrderItem) =>
+              sameEntityId(purchaseOrderItem.po_id, resolvedPoId),
+            ),
+          );
         const allReceived = poItems.every(
           (i: PurchaseOrderItem) => (i.quantity_received || 0) >= i.quantity_ordered,
         );
@@ -97,7 +144,7 @@ export const goodsReceiptRepository = {
         if (allReceived) newStatus = 'received';
         else if (someReceived) newStatus = 'partial_received';
 
-        await db.purchase_orders.update(gr.po_id, {
+        await db.purchase_orders.update(resolvedPoId, {
           status: newStatus,
           updated_at: new Date(),
           sync_status: 'pending',

@@ -38,11 +38,14 @@ export default function ProfitLossPage() {
 
   const liveTransactions = useLiveQuery(() => transactionRepository.getAll());
   const transactions = useMemo(() => liveTransactions || [], [liveTransactions]);
+  const liveExpenses = useLiveQuery(() => db.expenses.toArray());
+  const expenses = useMemo(() => liveExpenses || [], [liveExpenses]);
 
   useEffect(() => {
     const calculatePL = async () => {
       let revenue = 0;
       let cogs = 0;
+      let totalExpenses = 0;
 
       // Filter transactions
       const filteredTxs = transactions.filter((tx) => {
@@ -69,22 +72,35 @@ export default function ProfitLossPage() {
         cogs += txCOGS;
       }
 
-      const grossProfit = revenue - cogs;
-      const expenses = 0; // Hardcoded for now, need expense module
-      const netProfit = grossProfit - expenses;
-      const margin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+      totalExpenses = expenses
+        .filter((expense) =>
+          isWithinInterval(new Date(expense.date), {
+            start: new Date(startDate),
+            end: new Date(endDate),
+          }),
+        )
+        .reduce((sum, expense) => sum + expense.amount, 0);
 
-      setReportData({ revenue, cogs, grossProfit, expenses, netProfit, margin });
+      const grossProfit = revenue - cogs;
+      const netProfit = grossProfit - totalExpenses;
+      const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+
+      setReportData({
+        revenue,
+        cogs,
+        grossProfit,
+        expenses: totalExpenses,
+        netProfit,
+        margin,
+      });
     };
 
-    if (transactions.length > 0) {
-      calculatePL();
-    }
-  }, [transactions, startDate, endDate]);
+    void calculatePL();
+  }, [expenses, transactions, startDate, endDate]);
 
   const chartData = [
     { name: 'HPP (COGS)', value: reportData.cogs },
-    { name: 'Laba Kotor', value: reportData.grossProfit },
+    { name: 'Laba Bersih', value: reportData.netProfit },
   ];
   const COLORS = ['#D62828', '#2D6A4F'];
 
@@ -217,13 +233,13 @@ export default function ProfitLossPage() {
                 <div className="flex justify-between items-center py-6 px-10 bg-gradient-to-r from-emerald-600 to-emerald-800 rounded-2xl shadow-xl shadow-emerald-200">
                   <div className="text-white">
                     <p className="text-sm font-medium opacity-80 uppercase tracking-widest">
-                      Laba Kotor (Gross Profit)
+                      Laba Bersih (Net Profit)
                     </p>
-                    <p className="text-xs opacity-60">Sebelum dikurangi beban operasional</p>
+                    <p className="text-xs opacity-60">Setelah dikurangi beban operasional</p>
                   </div>
                   <div className="text-right">
                     <span className="text-4xl font-black text-white">
-                      Rp {reportData.grossProfit.toLocaleString('id-ID')}
+                      Rp {reportData.netProfit.toLocaleString('id-ID')}
                     </span>
                   </div>
                 </div>

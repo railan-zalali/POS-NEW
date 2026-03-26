@@ -25,10 +25,10 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Search, XCircle, AlertTriangle, Eye, RotateCcw } from 'lucide-react';
+import { Search, XCircle, AlertTriangle, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import type { SalesTransaction } from '@/lib/db/schema';
+import type { SalesTransaction, SalesTransactionItem } from '@/lib/db/schema';
 
 export default function VoidTransactionPage() {
   const { toast } = useToast();
@@ -38,8 +38,6 @@ export default function VoidTransactionPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<SalesTransaction | null>(null);
   const [isVoidDialogOpen, setIsVoidDialogOpen] = useState(false);
   const [voidReason, setVoidReason] = useState('');
-  const [voidType, setVoidType] = useState<'full' | 'refund'>('full');
-  const [refundAmount, setRefundAmount] = useState(0);
 
   const transactions = useLiveQuery(() => transactionRepository.getAll()) || [];
   const customers = useLiveQuery(() => db.customers.toArray()) || [];
@@ -62,16 +60,41 @@ export default function VoidTransactionPage() {
   const handleViewTransaction = (tx: SalesTransaction) => {
     setSelectedTransaction(tx);
     setVoidReason('');
-    setVoidType('full');
-    setRefundAmount(tx.paid_amount);
   };
 
   const handleVoidClick = (tx: SalesTransaction) => {
     setSelectedTransaction(tx);
     setVoidReason('');
-    setVoidType('full');
-    setRefundAmount(tx.paid_amount);
     setIsVoidDialogOpen(true);
+  };
+
+  const restoreLegacyAllocation = async (item: SalesTransactionItem) => {
+    if (item.batch_allocations?.length) {
+      return item.batch_allocations;
+    }
+
+    if (!item.batch_ids?.length) {
+      throw new Error('Data batch transaksi lama tidak lengkap untuk di-void.');
+    }
+
+    if (item.batch_ids.length > 1) {
+      throw new Error(
+        'Transaksi lama dengan multi-batch tidak bisa di-void otomatis. Gunakan penyesuaian stok manual.',
+      );
+    }
+
+    const unit = await db.product_units.get(item.product_unit_id);
+    if (!unit) {
+      throw new Error('Satuan produk transaksi tidak ditemukan.');
+    }
+
+    return [
+      {
+        batch_id: item.batch_ids[0],
+        quantity: item.quantity * unit.conversion_factor,
+        purchase_price: item.cogs / Math.max(item.quantity * unit.conversion_factor, 1),
+      },
+    ];
   };
 
   const handleVoidTransaction = async () => {
@@ -86,10 +109,10 @@ export default function VoidTransactionPage() {
       return;
     }
 
-    if (voidType === 'refund' && refundAmount <= 0) {
+    if (selectedTransaction.status === 'cancelled') {
       toast({
         title: 'Gagal',
-        description: 'Jumlah refund harus lebih dari 0',
+        description: 'Transaksi ini sudah dibatalkan sebelumnya.',
         variant: 'destructive',
       });
       return;
@@ -112,13 +135,15 @@ export default function VoidTransactionPage() {
             .toArray();
 
           for (const item of items) {
-            const stocks = await db.product_stocks
-              .where('product_id')
-              .equals(item.product_id)
-              .toArray();
+            const allocations = await restoreLegacyAllocation(item);
 
-            for (const stock of stocks) {
-              const newQty = stock.quantity + item.quantity;
+            for (const allocation of allocations) {
+              const stock = await db.product_stocks.get(allocation.batch_id);
+              if (!stock) {
+                throw new Error(`Batch stok ${allocation.batch_id} tidak ditemukan.`);
+              }
+
+              const newQty = stock.quantity + allocation.quantity;
               await db.product_stocks.update(stock.id!, {
                 quantity: newQty,
                 updated_at: new Date(),
@@ -131,11 +156,14 @@ export default function VoidTransactionPage() {
                 movement_type: 'return',
                 reference_id: selectedTransaction.id!,
                 reference_type: 'transaction',
+                batch_number: stock.batch_number,
                 quantity_before: stock.quantity,
-                quantity_change: item.quantity,
+                quantity_change: allocation.quantity,
                 quantity_after: newQty,
+                expire_date: stock.expire_date,
                 created_by: user?.id || 'system',
                 created_at: new Date(),
+                updated_at: new Date(),
                 sync_status: 'pending',
               });
             }
@@ -143,12 +171,12 @@ export default function VoidTransactionPage() {
 
           await db.sales_transactions.update(selectedTransaction.id!, {
             status: 'cancelled',
-            notes: `${selectedTransaction.notes || ''}\n\n[VODID] ${voidType === 'full' ? 'Pembatalan Transaksi' : 'Refund'}: ${voidReason}\nDibatalkan oleh: ${user?.full_name || 'System'}\nTanggal: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`,
+            notes: `${selectedTransaction.notes || ''}\n\n[VOID] Pembatalan Transaksi: ${voidReason}\nDibatalkan oleh: ${user?.full_name || 'System'}\nTanggal: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`,
             updated_at: new Date(),
             sync_status: 'pending',
           });
 
-          if (selectedTransaction.customer_id && voidType === 'full') {
+          if (selectedTransaction.customer_id && selectedTransaction.payment_method === 'credit') {
             const customer = await db.customers.get(selectedTransaction.customer_id);
             if (customer) {
               await db.customers.update(selectedTransaction.customer_id, {
@@ -156,6 +184,7 @@ export default function VoidTransactionPage() {
                   0,
                   customer.outstanding_credit - selectedTransaction.total_amount,
                 ),
+                updated_at: new Date(),
                 sync_status: 'pending',
               });
             }
@@ -171,10 +200,10 @@ export default function VoidTransactionPage() {
       setIsVoidDialogOpen(false);
       setSelectedTransaction(null);
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Gagal',
-        description: 'Terjadi kesalahan saat membatalkan transaksi',
+        description:
+          error instanceof Error ? error.message : 'Terjadi kesalahan saat membatalkan transaksi',
         variant: 'destructive',
       });
     }
@@ -306,42 +335,10 @@ export default function VoidTransactionPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Tipe Pembatalan</Label>
-                  <div className="flex gap-4">
-                    <Button
-                      variant={voidType === 'full' ? 'default' : 'outline'}
-                      onClick={() => setVoidType('full')}
-                      className="flex-1"
-                    >
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Batalkan Penuh
-                    </Button>
-                    <Button
-                      variant={voidType === 'refund' ? 'default' : 'outline'}
-                      onClick={() => setVoidType('refund')}
-                      className="flex-1"
-                    >
-                      <RotateCcw className="mr-2 h-4 w-4" />
-                      Refund Sebagian
-                    </Button>
-                  </div>
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  Sistem hanya mendukung pembatalan penuh pada fase ini agar rollback stok tetap
+                  akurat per batch.
                 </div>
-
-                {voidType === 'refund' && (
-                  <div className="space-y-2">
-                    <Label>Jumlah Refund</Label>
-                    <Input
-                      type="number"
-                      value={refundAmount}
-                      onChange={(e) => setRefundAmount(parseInt(e.target.value) || 0)}
-                      max={selectedTransaction.paid_amount}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Maksimal: Rp {selectedTransaction.paid_amount.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <Label>Alasan Pembatalan</Label>

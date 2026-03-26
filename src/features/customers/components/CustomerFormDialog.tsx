@@ -119,7 +119,7 @@ export function CustomerFormDialog({
       }
       onSuccess();
       onOpenChange(false);
-    } catch (_error) {
+    } catch {
       toast({
         title: 'Gagal',
         description: 'Terjadi kesalahan saat menyimpan pelanggan',

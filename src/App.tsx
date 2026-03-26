@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { RequirePermission } from '@/components/common/PermissionGuard';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { syncEngine } from '@/lib/supabase/syncEngine';
+import { useAuthStore } from '@/store/authStore';
 import LandingPage from '@/features/landing/pages/LandingPage';
 import LoginPage from '@/features/auth/LoginPage';
 import { RequireAuth } from '@/features/auth/RequireAuth';
@@ -48,22 +51,38 @@ const router = createBrowserRouter([
           },
           {
             path: 'pos',
-            element: <POSPage />,
+            element: (
+              <RequirePermission permission="pos:read" redirectTo="/app">
+                <POSPage />
+              </RequirePermission>
+            ),
           },
           {
             path: 'products',
             children: [
               {
                 index: true,
-                element: <ProductPage />,
+                element: (
+                  <RequirePermission permission="product:read" redirectTo="/app">
+                    <ProductPage />
+                  </RequirePermission>
+                ),
               },
               {
                 path: 'batch',
-                element: <ProductBatchPage />,
+                element: (
+                  <RequirePermission permission="product:read" redirectTo="/app">
+                    <ProductBatchPage />
+                  </RequirePermission>
+                ),
               },
               {
                 path: 'categories',
-                element: <CategoryPage />,
+                element: (
+                  <RequirePermission permission="product:read" redirectTo="/app">
+                    <CategoryPage />
+                  </RequirePermission>
+                ),
               },
             ],
           },
@@ -72,15 +91,27 @@ const router = createBrowserRouter([
             children: [
               {
                 index: true,
-                element: <POListPage />,
+                element: (
+                  <RequirePermission permission="purchase:read" redirectTo="/app">
+                    <POListPage />
+                  </RequirePermission>
+                ),
               },
               {
                 path: 'receipts',
-                element: <GoodsReceiptPage />,
+                element: (
+                  <RequirePermission permission="purchase:read" redirectTo="/app">
+                    <GoodsReceiptPage />
+                  </RequirePermission>
+                ),
               },
               {
                 path: 'returns',
-                element: <PurchaseReturnPage />,
+                element: (
+                  <RequirePermission permission="purchase:read" redirectTo="/app">
+                    <PurchaseReturnPage />
+                  </RequirePermission>
+                ),
               },
             ],
           },
@@ -89,62 +120,114 @@ const router = createBrowserRouter([
             children: [
               {
                 index: true,
-                element: <StockReportPage />,
+                element: (
+                  <RequirePermission permission="stock:read" redirectTo="/app">
+                    <StockReportPage />
+                  </RequirePermission>
+                ),
               },
               {
                 path: 'adjustment',
-                element: <StockAdjustmentPage />,
+                element: (
+                  <RequirePermission permission="stock:adjust" redirectTo="/app">
+                    <StockAdjustmentPage />
+                  </RequirePermission>
+                ),
               },
             ],
           },
           {
             path: 'customers',
-            element: <CustomerPage />,
+            element: (
+              <RequirePermission permission="customer:read" redirectTo="/app">
+                <CustomerPage />
+              </RequirePermission>
+            ),
           },
           {
             path: 'suppliers',
-            element: <SupplierPage />,
+            element: (
+              <RequirePermission permission="supplier:read" redirectTo="/app">
+                <SupplierPage />
+              </RequirePermission>
+            ),
           },
           {
             path: 'reports',
             children: [
               {
                 index: true,
-                element: <SalesReportPage />,
+                element: (
+                  <RequirePermission permission="report:view" redirectTo="/app">
+                    <SalesReportPage />
+                  </RequirePermission>
+                ),
               },
               {
                 path: 'profit-loss',
-                element: <ProfitLossPage />,
+                element: (
+                  <RequirePermission permission="report:view" redirectTo="/app">
+                    <ProfitLossPage />
+                  </RequirePermission>
+                ),
               },
               {
                 path: 'purchase',
-                element: <PurchaseReportPage />,
+                element: (
+                  <RequirePermission permission="report:view" redirectTo="/app">
+                    <PurchaseReportPage />
+                  </RequirePermission>
+                ),
               },
               {
                 path: 'products-customers',
-                element: <ProductCustomerReportPage />,
+                element: (
+                  <RequirePermission permission="report:view" redirectTo="/app">
+                    <ProductCustomerReportPage />
+                  </RequirePermission>
+                ),
               },
               {
                 path: 'receivable',
-                element: <AccountsReceivablePage />,
+                element: (
+                  <RequirePermission permission="report:view" redirectTo="/app">
+                    <AccountsReceivablePage />
+                  </RequirePermission>
+                ),
               },
               {
                 path: 'void',
-                element: <VoidTransactionPage />,
+                element: (
+                  <RequirePermission permission="pos:void" redirectTo="/app">
+                    <VoidTransactionPage />
+                  </RequirePermission>
+                ),
               },
             ],
           },
           {
             path: 'settings',
-            element: <SettingsPage />,
+            element: (
+              <RequirePermission permission="settings:read" redirectTo="/app">
+                <SettingsPage />
+              </RequirePermission>
+            ),
           },
           {
             path: 'expenses',
-            element: <ExpensePage />,
+            element: (
+              <RequirePermission permission="report:view" redirectTo="/app">
+                <ExpensePage />
+              </RequirePermission>
+            ),
           },
           {
             path: 'customers/payments',
-            element: <CustomerPaymentPage />,
+            element: (
+              <RequirePermission permission="customer:edit" redirectTo="/app">
+                <CustomerPaymentPage />
+              </RequirePermission>
+            ),
           },
         ],
       },
@@ -161,10 +244,18 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
+  const checkAuth = useAuthStore((state) => state.checkAuth);
+
   useEffect(() => {
-    const interval = syncEngine.startAutoSync();
-    return () => clearInterval(interval);
-  }, []);
+    void checkAuth();
+    const interval = isSupabaseConfigured ? syncEngine.startAutoSync() : null;
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [checkAuth]);
 
   return (
     <TooltipProvider>

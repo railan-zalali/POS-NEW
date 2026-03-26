@@ -32,7 +32,7 @@ export default function LoginPage() {
 
   // Seed data on first load just in case
   useEffect(() => {
-    seedData();
+    void seedData();
   }, [seedData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,7 +108,7 @@ export default function LoginPage() {
         </form>
         <div className="pb-4 text-center text-xs text-muted-foreground">
           <p>
-            Default Admin: username: <strong>admin</strong> | PIN: <strong>123456</strong>
+            Akun awal dibuat otomatis saat database kosong. Hubungi admin untuk kredensial akses.
           </p>
         </div>
       </Card>

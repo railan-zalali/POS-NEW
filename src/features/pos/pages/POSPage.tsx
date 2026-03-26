@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { productRepository } from '@/lib/db/productRepository';
 import { categoryRepository } from '@/lib/db/categoryRepository';
+import { db } from '@/lib/db/dexie';
 import { ProductCatalog } from '../components/ProductCatalog';
 import { CartPanel } from '../components/CartPanel';
 import { UnitSelectionDialog } from '../components/UnitSelectionDialog';
@@ -22,12 +23,18 @@ export default function POSPage() {
   const [productUnits, setProductUnits] = useState<ProductUnit[]>([]);
   const [isUnitDialogOpen, setIsUnitDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+
+  // Announce important events for screen readers
+  const announce = (message: string) => {
+    setAnnouncement(message);
+    setTimeout(() => setAnnouncement(''), 3000);
+  };
 
   // Fetch data
   const products = useLiveQuery(() => productRepository.getAll()) || [];
   const categories = useLiveQuery(() => categoryRepository.getAll()) || [];
-  const allUnits =
-    useLiveQuery(() => import('@/lib/db/dexie').then((m) => m.db.product_units.toArray())) || [];
+  const allUnits = useLiveQuery(() => db.product_units.toArray()) || [];
 
   const handleProductClick = async (product: Product) => {
     const units = allUnits.filter((u) => u.product_id === product.id);
@@ -38,15 +45,18 @@ export default function POSPage() {
         description: 'Produk ini tidak memiliki satuan harga.',
         variant: 'destructive',
       });
+      announce(`Error: ${product.name} tidak memiliki satuan harga`);
       return;
     }
 
     if (units.length === 1) {
       addItem(product, units[0]);
+      announce(`${product.name} ditambahkan ke keranjang`);
     } else {
       setSelectedProduct(product);
       setProductUnits(units);
       setIsUnitDialogOpen(true);
+      announce(`${product.name} - pilih satuan harga`);
     }
   };
 
@@ -54,6 +64,7 @@ export default function POSPage() {
     if (selectedProduct) {
       addItem(selectedProduct, unit);
       setIsUnitDialogOpen(false);
+      announce(`Satuan ${unit.unit_name} dipilih untuk ${selectedProduct.name}`);
     }
   };
 
@@ -64,9 +75,11 @@ export default function POSPage() {
         description: 'Tambahkan produk sebelum melakukan pembayaran.',
         variant: 'destructive',
       });
+      announce('Keranjang kosong - tambahkan produk terlebih dahulu');
       return;
     }
     setIsPaymentDialogOpen(true);
+    announce('Dialog pembayaran dibuka');
   }, [cart.length, toast]);
 
   // Keyboard shortcuts
@@ -121,31 +134,42 @@ export default function POSPage() {
   }, [handlePaymentClick, resetTransaction]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-4 md:flex-row p-4 overflow-hidden bg-muted/30">
-      {/* LEFT PANEL: PRODUCT CATALOG */}
-      <ProductCatalog
-        products={products}
-        categories={categories}
-        allUnits={allUnits}
-        search={search}
-        onSearchChange={setSearch}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-        onProductClick={handleProductClick}
-      />
+    <>
+      {/* ARIA Live Region for screen reader announcements */}
+      <div role="status" aria-live="assertive" aria-atomic="true" className="sr-only">
+        {announcement}
+      </div>
 
-      {/* RIGHT PANEL: CART & CHECKOUT */}
-      <CartPanel user={user} onPaymentOpen={handlePaymentClick} />
+      <div
+        className="flex h-[calc(100vh-4rem)] flex-col gap-4 md:flex-row p-4 overflow-hidden bg-muted/30"
+        role="application"
+        aria-label="Point of Sale - Katalog produk dan panel keranjang"
+      >
+        {/* LEFT PANEL: PRODUCT CATALOG */}
+        <ProductCatalog
+          products={products}
+          categories={categories}
+          allUnits={allUnits}
+          search={search}
+          onSearchChange={setSearch}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          onProductClick={handleProductClick}
+        />
 
-      <UnitSelectionDialog
-        open={isUnitDialogOpen}
-        onOpenChange={setIsUnitDialogOpen}
-        product={selectedProduct}
-        units={productUnits}
-        onSelect={handleUnitSelect}
-      />
+        {/* RIGHT PANEL: CART & CHECKOUT */}
+        <CartPanel user={user} onPaymentOpen={handlePaymentClick} />
 
-      <PaymentDialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen} />
-    </div>
+        <UnitSelectionDialog
+          open={isUnitDialogOpen}
+          onOpenChange={setIsUnitDialogOpen}
+          product={selectedProduct}
+          units={productUnits}
+          onSelect={handleUnitSelect}
+        />
+
+        <PaymentDialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen} />
+      </div>
+    </>
   );
 }

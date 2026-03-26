@@ -131,12 +131,19 @@ export interface SalesTransactionItem extends BaseEntity {
   product_id: string;
   product_unit_id: string;
   batch_ids: string[];
+  batch_allocations: BatchAllocation[];
   quantity: number;
   unit_price: number;
   discount_percent: number;
   discount_amount: number;
   subtotal: number;
   cogs: number;
+}
+
+export interface BatchAllocation {
+  batch_id: string;
+  quantity: number;
+  purchase_price: number;
 }
 
 export type PermissionKey =
@@ -248,7 +255,7 @@ export interface StockMovement extends BaseEntity {
 }
 
 // App Settings
-export interface AppSetting {
+export interface AppSetting extends BaseEntity {
   key: string;
   value: unknown;
   description?: string;
@@ -324,4 +331,11 @@ export interface PurchaseReturnItem extends BaseEntity {
   subtotal: number;
   reason: ReturnReason;
   notes?: string;
+}
+
+export interface TransactionSnapshot extends BaseEntity {
+  transaction_id: string;
+  snapshot: string;
+  stockBefore: Record<string, number>;
+  timestamp: number;
 }

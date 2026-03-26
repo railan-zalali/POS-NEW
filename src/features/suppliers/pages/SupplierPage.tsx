@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { supplierRepository } from '@/lib/db/supplierRepository';
 import { Button } from '@/components/ui/button';
@@ -32,17 +32,21 @@ export default function SupplierPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
   const { toast } = useToast();
 
-  const suppliers = useLiveQuery(() => supplierRepository.getAll()) || [];
+  const suppliers =
+    useLiveQuery(() =>
+      supplierRepository.getPaginated((currentPage - 1) * itemsPerPage, itemsPerPage),
+    ) || [];
+  const totalSuppliers = useLiveQuery(() => supplierRepository.getTotalCount()) || 0;
+  const totalPages = Math.ceil(totalSuppliers / itemsPerPage);
 
-  const filteredSuppliers = suppliers.filter(
-    (supplier) =>
-      supplier.name.toLowerCase().includes(search.toLowerCase()) ||
-      supplier.code.toLowerCase().includes(search.toLowerCase()) ||
-      (supplier.contact_person &&
-        supplier.contact_person.toLowerCase().includes(search.toLowerCase())),
-  );
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -106,14 +110,14 @@ export default function SupplierPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSuppliers.length === 0 ? (
+                {suppliers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
                       Tidak ada supplier ditemukan.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredSuppliers.map((supplier) => (
+                  suppliers.map((supplier) => (
                     <TableRow key={supplier.id}>
                       <TableCell className="font-medium">{supplier.code}</TableCell>
                       <TableCell>
@@ -165,6 +169,58 @@ export default function SupplierPage() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Menampilkan {Math.min(currentPage * itemsPerPage, totalSuppliers)} dari{' '}
+              {totalSuppliers} supplier
+              {totalPages > 1 && ` (Halaman ${currentPage} dari ${totalPages})`}
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Sebelumnya
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="min-w-[32px]"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Selanjutnya
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

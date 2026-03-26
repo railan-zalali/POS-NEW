@@ -229,8 +229,6 @@ export const seedDummyData = async () => {
           sync_status: 'pending',
         } as Customer);
       }
-
-      console.log('Dummy data seeded successfully!');
     },
   );
 };

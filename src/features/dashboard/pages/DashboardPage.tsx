@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { transactionRepository } from '@/lib/db/transactionRepository';
 import { productRepository } from '@/lib/db/productRepository';
 import { db } from '@/lib/db/dexie';
+import { queryCache } from '@/lib/queryCache';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DollarSign, Package, AlertTriangle, Clock, TrendingUp } from 'lucide-react';
@@ -14,6 +15,7 @@ import type { SalesTransaction, Product, ProductStock } from '@/lib/db/schema';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const statsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [stats, setStats] = useState({
     todaySales: 0,
     todayProfit: 0,
@@ -27,32 +29,68 @@ export default function DashboardPage() {
 
   const [salesTrend, setSalesTrend] = useState<{ date: string; total: number }[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<SalesTransaction[]>([]);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Fetch data
+  // Fetch data with caching for less frequently changing data
   const liveTransactions = useLiveQuery(() => transactionRepository.getAll());
-  const transactions = useMemo(() => liveTransactions || [], [liveTransactions]);
+  const transactions = useMemo(() => {
+    const result = liveTransactions || [];
+    queryCache.set('dashboard-transactions', result, 10000); // Cache for 10 seconds
+    return result;
+  }, [liveTransactions]);
 
   const liveProducts = useLiveQuery(() => productRepository.getAll());
-  const products = useMemo(() => liveProducts || [], [liveProducts]);
+  const products = useMemo(() => {
+    const result = liveProducts || [];
+    queryCache.set('dashboard-products', result, 30000); // Cache for 30 seconds
+    return result;
+  }, [liveProducts]);
 
   const liveCustomers = useLiveQuery(() => db.customers.toArray());
-  const customers = useMemo(() => liveCustomers || [], [liveCustomers]);
+  const customers = useMemo(() => {
+    const result = liveCustomers || [];
+    queryCache.set('dashboard-customers', result, 30000); // Cache for 30 seconds
+    return result;
+  }, [liveCustomers]);
 
   const liveStocks = useLiveQuery(() => db.product_stocks.toArray());
-  const stocks = useMemo(() => liveStocks || [], [liveStocks]);
+  const stocks = useMemo(() => {
+    const result = liveStocks || [];
+    queryCache.set('dashboard-stocks', result, 15000); // Cache for 15 seconds
+    return result;
+  }, [liveStocks]);
 
   useEffect(() => {
-    if (transactions.length === 0 && products.length === 0 && stocks.length === 0) return;
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
-    const today = new Date();
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
-    // 1. Calculate Today's Stats
-    const todayTxs = transactions.filter((tx) => isSameDay(new Date(tx.transaction_date), today));
-    const todaySales = todayTxs.reduce((sum, tx) => sum + tx.total_amount, 0);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
-    // Calculate Today's Profit (from COGS)
-    // Note: We need to pull COGS from sales_transaction_items for these transactions
-    const calculateTodayProfit = async () => {
+  useEffect(() => {
+    // Clear previous timeout
+    if (statsTimeoutRef.current) {
+      clearTimeout(statsTimeoutRef.current);
+    }
+
+    // Debounce stats calculation by 300ms
+    statsTimeoutRef.current = setTimeout(async () => {
+      if (transactions.length === 0 && products.length === 0 && stocks.length === 0) return;
+
+      const today = new Date();
+
+      // 1. Calculate Today's Stats
+      const todayTxs = transactions.filter((tx) => isSameDay(new Date(tx.transaction_date), today));
+      const todaySales = todayTxs.reduce((sum, tx) => sum + tx.total_amount, 0);
+
+      // Calculate Today's Profit (from COGS)
+      // Note: We need to pull COGS from sales_transaction_items for these transactions
       let todayProfit = 0;
       for (const tx of todayTxs) {
         const items = await db.sales_transaction_items
@@ -92,35 +130,39 @@ export default function DashboardPage() {
         lowStockCount: lowStock,
         expiringCount,
       });
+
+      // 2. Calculate Sales Trend (Last 7 Days)
+      interface SalesTrendItem {
+        date: string;
+        total: number;
+      }
+      const trendData: SalesTrendItem[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = subDays(today, i);
+        const daySales = transactions
+          .filter((tx: SalesTransaction) => isSameDay(new Date(tx.transaction_date), d))
+          .reduce((sum: number, tx: SalesTransaction) => sum + tx.total_amount, 0);
+
+        trendData.push({
+          date: format(d, 'dd/MM'),
+          total: daySales,
+        });
+      }
+
+      setSalesTrend(trendData);
+
+      // 4. Recent Transactions
+      const recent = [...transactions]
+        .sort((a, b) => b.transaction_date.getTime() - a.transaction_date.getTime())
+        .slice(0, 5);
+      setRecentTransactions(recent);
+    }, 300);
+
+    return () => {
+      if (statsTimeoutRef.current) {
+        clearTimeout(statsTimeoutRef.current);
+      }
     };
-
-    calculateTodayProfit();
-
-    // 2. Calculate Sales Trend (Last 7 Days)
-    interface SalesTrendItem {
-      date: string;
-      total: number;
-    }
-    const trendData: SalesTrendItem[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = subDays(today, i);
-      const daySales = transactions
-        .filter((tx: SalesTransaction) => isSameDay(new Date(tx.transaction_date), d))
-        .reduce((sum: number, tx: SalesTransaction) => sum + tx.total_amount, 0);
-
-      trendData.push({
-        date: format(d, 'dd/MM'),
-        total: daySales,
-      });
-    }
-
-    setSalesTrend(trendData);
-
-    // 4. Recent Transactions
-    const recent = [...transactions]
-      .sort((a, b) => b.transaction_date.getTime() - a.transaction_date.getTime())
-      .slice(0, 5);
-    setRecentTransactions(recent);
   }, [transactions, products, customers, stocks]);
 
   // Custom tooltip to avoid recreating function on every render
@@ -161,12 +203,18 @@ export default function DashboardPage() {
               Status Sistem
             </p>
             <div className="flex items-center justify-end gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-sm font-semibold text-emerald-600">Online</span>
+              <span
+                className={`h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}
+              ></span>
+              <span
+                className={`text-sm font-semibold ${isOnline ? 'text-emerald-600' : 'text-slate-500'}`}
+              >
+                {isOnline ? 'Online' : 'Offline'}
+              </span>
             </div>
           </div>
           <Button
-            onClick={() => navigate('/pos')}
+            onClick={() => navigate('/app/pos')}
             className="rounded-full px-6 shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
           >
             Buka Kasir
@@ -359,15 +407,13 @@ export default function DashboardPage() {
                 ))
               )}
             </div>
-            {recentTransactions.length > 0 && (
-              <Button
-                variant="ghost"
-                className="w-full mt-6 text-xs text-slate-500 hover:text-primary"
-                onClick={() => navigate('/reports/sales')}
-              >
-                Lihat Semua Laporan
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              className="w-full mt-6 text-xs text-slate-500 hover:text-primary"
+              onClick={() => navigate('/app/reports')}
+            >
+              Lihat Semua Laporan
+            </Button>
           </CardContent>
         </Card>
       </div>

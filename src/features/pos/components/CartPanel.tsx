@@ -1,4 +1,5 @@
-import { ShoppingCart, RotateCcw, CreditCard } from 'lucide-react';
+import { useEffect } from 'react';
+import { ShoppingCart, RotateCcw, CreditCard, Landmark, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePOSStore } from '../store/posStore';
@@ -21,8 +22,10 @@ export function CartPanel({ user, onPaymentOpen }: CartPanelProps) {
     getTaxAmount,
     getChange,
     paid_amount,
+    payment_method,
     global_discount,
     tax_rate,
+    setPaymentMethod,
     setPaidAmount,
     setGlobalDiscount,
     resetTransaction,
@@ -32,6 +35,17 @@ export function CartPanel({ user, onPaymentOpen }: CartPanelProps) {
   const tax = getTaxAmount();
   const total = getTotal();
   const change = getChange();
+
+  useEffect(() => {
+    if (payment_method === 'transfer') {
+      setPaidAmount(total);
+      return;
+    }
+
+    if (payment_method === 'credit') {
+      setPaidAmount(0);
+    }
+  }, [payment_method, setPaidAmount, total]);
 
   return (
     <div className="flex w-full flex-col rounded-lg border bg-background shadow-sm md:w-[400px]">
@@ -99,6 +113,36 @@ export function CartPanel({ user, onPaymentOpen }: CartPanelProps) {
         </div>
 
         <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              type="button"
+              variant={payment_method === 'cash' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPaymentMethod('cash')}
+            >
+              <WalletCards className="mr-2 h-4 w-4" />
+              Tunai
+            </Button>
+            <Button
+              type="button"
+              variant={payment_method === 'transfer' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPaymentMethod('transfer')}
+            >
+              <Landmark className="mr-2 h-4 w-4" />
+              Transfer
+            </Button>
+            <Button
+              type="button"
+              variant={payment_method === 'credit' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPaymentMethod('credit')}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Kredit
+            </Button>
+          </div>
+
           <div className="relative">
             <span className="absolute left-3 top-2.5 text-sm font-bold">Rp</span>
             <Input
@@ -107,6 +151,7 @@ export function CartPanel({ user, onPaymentOpen }: CartPanelProps) {
               className="pl-10 text-right font-bold text-lg"
               placeholder="0"
               value={paid_amount || ''}
+              disabled={payment_method !== 'cash'}
               onChange={(e) => setPaidAmount(Number(e.target.value))}
             />
           </div>
@@ -116,6 +161,7 @@ export function CartPanel({ user, onPaymentOpen }: CartPanelProps) {
               size="sm"
               className="flex-1 text-xs"
               onClick={() => setPaidAmount(total)}
+              disabled={payment_method !== 'cash'}
             >
               Uang Pas
             </Button>
@@ -124,6 +170,7 @@ export function CartPanel({ user, onPaymentOpen }: CartPanelProps) {
               size="sm"
               className="flex-1 text-xs"
               onClick={() => setPaidAmount(50000)}
+              disabled={payment_method !== 'cash'}
             >
               50k
             </Button>
@@ -132,6 +179,7 @@ export function CartPanel({ user, onPaymentOpen }: CartPanelProps) {
               size="sm"
               className="flex-1 text-xs"
               onClick={() => setPaidAmount(100000)}
+              disabled={payment_method !== 'cash'}
             >
               100k
             </Button>

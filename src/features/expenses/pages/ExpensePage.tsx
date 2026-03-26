@@ -158,10 +158,9 @@ export default function ExpensePage() {
 
       setIsDialogOpen(false);
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Gagal',
-        description: 'Terjadi kesalahan saat menyimpan.',
+        description: error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan.',
         variant: 'destructive',
       });
     }

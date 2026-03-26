@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePOSStore } from '../store/posStore';
 import { useAuthStore } from '@/store/authStore';
 import { transactionRepository } from '@/lib/db/transactionRepository';
 import type { TransactionStatus, PaymentMethod, Customer } from '@/lib/db/schema';
 import type { CartItem } from '@/lib/db/schema';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useReactToPrint } from 'react-to-print';
 import { ReceiptTemplate } from './ReceiptTemplate';
 import { Loader2, Printer, CheckCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { addDays, format } from 'date-fns';
 
 interface PaymentDialogProps {
   open: boolean;
@@ -30,6 +32,8 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
     customer,
     payment_method,
     paid_amount,
+    payment_reference,
+    due_date,
     global_discount,
     notes,
     getTotal,
@@ -37,6 +41,9 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
     getTaxAmount,
     getChange,
     resetTransaction,
+    setPaidAmount,
+    setPaymentReference,
+    setDueDate,
   } = usePOSStore();
   const { user } = useAuthStore();
   const { toast } = useToast();
@@ -72,6 +79,21 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
   const total = getTotal();
   const change = getChange();
 
+  useEffect(() => {
+    if (!open) return;
+
+    if (payment_method === 'transfer') {
+      setPaidAmount(total);
+    }
+
+    if (payment_method === 'credit') {
+      setPaidAmount(0);
+      if (!due_date) {
+        setDueDate(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
+      }
+    }
+  }, [due_date, open, payment_method, setDueDate, setPaidAmount, total]);
+
   const handleProcessPayment = async () => {
     if (paid_amount < total && payment_method === 'cash') {
       toast({
@@ -82,9 +104,50 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
       return;
     }
 
+    if (payment_method === 'transfer' && !payment_reference.trim()) {
+      toast({
+        title: 'Referensi Wajib',
+        description: 'Nomor referensi atau bukti transfer wajib diisi.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (payment_method === 'credit') {
+      if (!customer?.id) {
+        toast({
+          title: 'Pelanggan Wajib',
+          description: 'Pilih pelanggan terlebih dahulu untuk transaksi kredit.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!due_date) {
+        toast({
+          title: 'Jatuh Tempo Wajib',
+          description: 'Tanggal jatuh tempo wajib diisi untuk transaksi kredit.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (customer.outstanding_credit + total > customer.credit_limit) {
+        toast({
+          title: 'Limit Kredit Tidak Cukup',
+          description: 'Transaksi melebihi limit kredit pelanggan.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     setIsProcessing(true);
     try {
-      // 1. Prepare Transaction Data
+      const effectivePaidAmount =
+        payment_method === 'transfer' ? total : payment_method === 'credit' ? 0 : paid_amount;
+      const effectiveChange = payment_method === 'cash' ? change : 0;
+
       const transactionData = {
         invoice_number: `INV-${format(new Date(), 'yyyyMMdd')}-${Math.floor(Math.random() * 10000)
           .toString()
@@ -92,34 +155,31 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
         customer_id: customer?.id,
         cashier_id: user?.id || 'unknown',
         transaction_date: new Date(),
+        due_date: payment_method === 'credit' && due_date ? new Date(due_date) : undefined,
         subtotal: getSubtotal(),
         discount_amount: global_discount,
         tax_amount: getTaxAmount(),
         total_amount: total,
-        paid_amount: paid_amount,
-        change_amount: change,
+        paid_amount: effectivePaidAmount,
+        change_amount: effectiveChange,
         payment_method: payment_method as PaymentMethod,
+        payment_reference: payment_method === 'transfer' ? payment_reference.trim() : undefined,
         status: 'completed' as TransactionStatus,
         notes: notes,
       };
 
-      // 2. Prepare Items Data
       const transactionItems = cart.map((item) => ({
         product_id: item.product_id,
         product_unit_id: item.unit_id,
-        batch_ids: [], // FIFO/FEFO logic to be added later
         quantity: item.quantity,
         unit_price: item.unit_price,
         discount_percent: 0,
         discount_amount: item.discount_amount,
         subtotal: item.subtotal,
-        cogs: 0, // COGS calculation to be added
       }));
 
-      // 3. Save to DB
       await transactionRepository.create(transactionData, transactionItems);
 
-      // 5. Success State
       setLastTransaction({
         ...transactionData,
         customer: customer,
@@ -129,8 +189,8 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
         discount_amount: global_discount,
         tax_amount: getTaxAmount(),
         total_amount: total,
-        paid_amount: paid_amount,
-        change_amount: change,
+        paid_amount: effectivePaidAmount,
+        change_amount: effectiveChange,
       });
 
       setIsSuccess(true);
@@ -139,7 +199,6 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
         description: 'Transaksi telah disimpan.',
       });
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Gagal',
         description:
@@ -177,8 +236,56 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Pembayaran ({payment_method})</span>
-                <span>Rp {paid_amount.toLocaleString('id-ID')}</span>
+                <span>
+                  Rp{' '}
+                  {(payment_method === 'transfer'
+                    ? total
+                    : payment_method === 'credit'
+                      ? 0
+                      : paid_amount
+                  ).toLocaleString('id-ID')}
+                </span>
               </div>
+              {payment_method === 'transfer' && (
+                <div className="space-y-2">
+                  <Label htmlFor="payment-reference">Referensi Transfer</Label>
+                  <Input
+                    id="payment-reference"
+                    value={payment_reference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    placeholder="Nomor referensi atau bukti transfer"
+                  />
+                </div>
+              )}
+              {payment_method === 'credit' && (
+                <>
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    <div className="font-medium">{customer?.name || 'Pelanggan belum dipilih'}</div>
+                    <div className="mt-1 text-xs">
+                      Piutang saat ini: Rp{' '}
+                      {customer?.outstanding_credit.toLocaleString('id-ID') || 0}
+                    </div>
+                    <div className="text-xs">
+                      Limit kredit: Rp {customer?.credit_limit.toLocaleString('id-ID') || 0}
+                    </div>
+                    <div className="text-xs">
+                      Setelah transaksi: Rp{' '}
+                      {customer
+                        ? (customer.outstanding_credit + total).toLocaleString('id-ID')
+                        : total.toLocaleString('id-ID')}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="credit-due-date">Jatuh Tempo</Label>
+                    <Input
+                      id="credit-due-date"
+                      type="date"
+                      value={due_date || ''}
+                      onChange={(e) => setDueDate(e.target.value || null)}
+                    />
+                  </div>
+                </>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Diskon</span>
                 <span className="text-destructive">
@@ -191,8 +298,14 @@ export function PaymentDialog({ open, onOpenChange }: PaymentDialogProps) {
               </div>
               <div className="flex justify-between text-sm border-t pt-2">
                 <span className="text-muted-foreground">Kembalian</span>
-                <span className={change < 0 ? 'text-destructive' : 'text-green-600 font-bold'}>
-                  Rp {change.toLocaleString('id-ID')}
+                <span
+                  className={
+                    payment_method === 'cash' && change < 0
+                      ? 'text-destructive'
+                      : 'text-green-600 font-bold'
+                  }
+                >
+                  Rp {(payment_method === 'cash' ? change : 0).toLocaleString('id-ID')}
                 </span>
               </div>
             </div>

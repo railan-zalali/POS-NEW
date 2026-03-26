@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
+import type { PermissionKey } from '@/lib/db/schema';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -22,57 +23,84 @@ interface NavItem {
   to: string;
   icon: React.ElementType;
   label: string;
-  subItems?: { to: string; label: string }[];
+  permission?: PermissionKey;
+  subItems?: { to: string; label: string; permission?: PermissionKey }[];
 }
 
 export function Sidebar() {
-  const { logout } = useAuthStore();
+  const { logout, hasPermission } = useAuthStore();
   const location = useLocation();
 
   const navItems: NavItem[] = [
     { to: '/app', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/app/pos', icon: ShoppingCart, label: 'Kasir (POS)' },
+    { to: '/app/pos', icon: ShoppingCart, label: 'Kasir (POS)', permission: 'pos:read' },
     {
       to: '/app/products',
       icon: Package,
       label: 'Produk',
+      permission: 'product:read',
       subItems: [
-        { to: '/app/products', label: 'Daftar Produk' },
-        { to: '/app/products/batch', label: 'Input Massal' },
-        { to: '/app/products/categories', label: 'Kategori' },
+        { to: '/app/products', label: 'Daftar Produk', permission: 'product:read' },
+        { to: '/app/products/batch', label: 'Input Massal', permission: 'product:read' },
+        { to: '/app/products/categories', label: 'Kategori', permission: 'product:read' },
       ],
     },
     {
       to: '/app/purchase',
       icon: ClipboardList,
       label: 'Pembelian',
+      permission: 'purchase:read',
       subItems: [
-        { to: '/app/purchase', label: 'Purchase Order' },
-        { to: '/app/purchase/receipts', label: 'Penerimaan Barang' },
-        { to: '/app/purchase/returns', label: 'Retur Pembelian' },
+        { to: '/app/purchase', label: 'Purchase Order', permission: 'purchase:read' },
+        { to: '/app/purchase/receipts', label: 'Penerimaan Barang', permission: 'purchase:read' },
+        { to: '/app/purchase/returns', label: 'Retur Pembelian', permission: 'purchase:read' },
       ],
     },
-    { to: '/app/stock', icon: Archive, label: 'Stok' },
-    { to: '/app/stock/adjustment', icon: Archive, label: 'Penyesuaian Stok' },
-    { to: '/app/customers', icon: Users, label: 'Pelanggan' },
-    { to: '/app/customers/payments', icon: DollarSign, label: 'Bayar Piutang' },
-    { to: '/app/suppliers', icon: Truck, label: 'Supplier' },
+    { to: '/app/stock', icon: Archive, label: 'Stok', permission: 'stock:read' },
+    {
+      to: '/app/stock/adjustment',
+      icon: Archive,
+      label: 'Penyesuaian Stok',
+      permission: 'stock:adjust',
+    },
+    { to: '/app/customers', icon: Users, label: 'Pelanggan', permission: 'customer:read' },
+    {
+      to: '/app/customers/payments',
+      icon: DollarSign,
+      label: 'Bayar Piutang',
+      permission: 'customer:edit',
+    },
+    { to: '/app/suppliers', icon: Truck, label: 'Supplier', permission: 'supplier:read' },
     {
       to: '/app/reports',
       icon: BarChart3,
       label: 'Laporan',
+      permission: 'report:view',
       subItems: [
-        { to: '/app/reports', label: 'Penjualan' },
-        { to: '/app/reports/profit-loss', label: 'Laba Rugi' },
-        { to: '/app/reports/purchase', label: 'Pembelian' },
-        { to: '/app/reports/products-customers', label: 'Produk & Pelanggan' },
-        { to: '/app/reports/receivable', label: 'Piutang (Credit)' },
+        { to: '/app/reports', label: 'Penjualan', permission: 'report:view' },
+        { to: '/app/reports/profit-loss', label: 'Laba Rugi', permission: 'report:view' },
+        { to: '/app/reports/purchase', label: 'Pembelian', permission: 'report:view' },
+        {
+          to: '/app/reports/products-customers',
+          label: 'Produk & Pelanggan',
+          permission: 'report:view',
+        },
+        { to: '/app/reports/receivable', label: 'Piutang (Credit)', permission: 'report:view' },
       ],
     },
-    { to: '/app/reports/void', icon: XCircle, label: 'Pembatalan' },
-    { to: '/app/expenses', icon: Receipt, label: 'Pengeluaran' },
-    { to: '/app/settings', icon: Settings, label: 'Pengaturan' },
+    { to: '/app/reports/void', icon: XCircle, label: 'Pembatalan', permission: 'pos:void' },
+    { to: '/app/expenses', icon: Receipt, label: 'Pengeluaran', permission: 'report:view' },
+    { to: '/app/settings', icon: Settings, label: 'Pengaturan', permission: 'settings:read' },
   ];
+
+  const visibleItems = navItems
+    .filter((item) => !item.permission || hasPermission(item.permission))
+    .map((item) => ({
+      ...item,
+      subItems: item.subItems?.filter(
+        (subItem) => !subItem.permission || hasPermission(subItem.permission),
+      ),
+    }));
 
   const handleLogout = () => {
     logout();
@@ -92,7 +120,7 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 overflow-auto py-4" aria-label="Navigation menu">
         <ul className="grid gap-1 px-2" role="list">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const isActive =
               location.pathname === item.to || location.pathname.startsWith(item.to + '/');
             const Icon = item.icon;

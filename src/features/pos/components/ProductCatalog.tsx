@@ -46,22 +46,38 @@ export function ProductCatalog({
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               autoFocus
+              aria-label="Cari produk berdasarkan nama atau kode produk"
+              aria-describedby="search-instructions"
             />
+            <span id="search-instructions" className="sr-only">
+              Tekan F1 untuk fokus ke kotak pencarian, atau gunakan keyboard arrow untuk navigasi
+              produk
+            </span>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 max-w-[50%] no-scrollbar">
+          <div
+            className="flex gap-2 overflow-x-auto pb-1 max-w-[50%] no-scrollbar"
+            role="tablist"
+            aria-label="Filter kategori produk"
+          >
             <Badge
+              role="tab"
               variant={selectedCategory === 'all' ? 'default' : 'outline'}
               className="cursor-pointer whitespace-nowrap"
               onClick={() => onCategoryChange('all')}
+              aria-selected={selectedCategory === 'all'}
+              aria-label="Tampilkan semua kategori"
             >
               Semua
             </Badge>
             {categories.map((cat) => (
               <Badge
                 key={cat.id}
+                role="tab"
                 variant={selectedCategory === cat.id ? 'default' : 'outline'}
                 className="cursor-pointer whitespace-nowrap"
                 onClick={() => onCategoryChange(cat.id!)}
+                aria-selected={selectedCategory === cat.id}
+                aria-label={`Filter kategori ${cat.name}`}
                 style={
                   selectedCategory === cat.id && cat.color ? { backgroundColor: cat.color } : {}
                 }
@@ -73,7 +89,13 @@ export function ProductCatalog({
         </div>
       </div>
 
-      <div className="grid flex-1 grid-cols-2 content-start gap-4 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 p-1">
+      <div
+        className="grid flex-1 grid-cols-2 content-start gap-4 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 p-1"
+        role="region"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label="Daftar produk"
+      >
         {filteredProducts.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center h-40 text-muted-foreground">
             <p>Produk tidak ditemukan</p>

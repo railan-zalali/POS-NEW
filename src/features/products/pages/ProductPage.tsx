@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { productRepository } from '@/lib/db/productRepository';
 import { categoryRepository } from '@/lib/db/categoryRepository';
@@ -43,20 +43,33 @@ export default function ProductPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
   const { toast } = useToast();
 
-  const products = useLiveQuery(() => productRepository.getAll()) || [];
+  const products =
+    useLiveQuery(() =>
+      productRepository.getPaginated((currentPage - 1) * itemsPerPage, itemsPerPage, {
+        search: search || undefined,
+        categoryId: categoryFilter === 'all' ? undefined : categoryFilter,
+        isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
+      }),
+    ) || [];
+  const totalProducts =
+    useLiveQuery(() =>
+      productRepository.getTotalCount({
+        search: search || undefined,
+        categoryId: categoryFilter === 'all' ? undefined : categoryFilter,
+        isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
+      }),
+    ) || 0;
   const categories = useLiveQuery(() => categoryRepository.getAll()) || [];
+  const totalPages = Math.ceil(totalProducts / itemsPerPage);
 
-  const filteredProducts = products.filter(
-    (product) =>
-      (product.name.toLowerCase().includes(search.toLowerCase()) ||
-        product.code.toLowerCase().includes(search.toLowerCase())) &&
-      (categoryFilter === 'all' || product.category_id === categoryFilter) &&
-      (statusFilter === 'all' ||
-        (statusFilter === 'active' && product.is_active) ||
-        (statusFilter === 'inactive' && !product.is_active)),
-  );
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, categoryFilter, statusFilter]);
 
   const getCategoryName = (categoryId: string) => {
     return categories.find((c) => c.id === categoryId)?.name || '-';
@@ -150,14 +163,14 @@ export default function ProductPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.length === 0 ? (
+                {products.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
                       Tidak ada produk ditemukan.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredProducts.map((product) => (
+                  products.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.code}</TableCell>
                       <TableCell>
@@ -220,8 +233,57 @@ export default function ProductPage() {
               </TableBody>
             </Table>
           </div>
-          <div className="mt-4 text-sm text-muted-foreground">
-            Menampilkan {filteredProducts.length} dari {products.length} produk
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Menampilkan {Math.min(currentPage * itemsPerPage, totalProducts)} dari {totalProducts}{' '}
+              produk
+              {totalPages > 1 && ` (Halaman ${currentPage} dari ${totalPages})`}
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Sebelumnya
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="min-w-[32px]"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Selanjutnya
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

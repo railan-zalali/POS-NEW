@@ -3,6 +3,43 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const getPackageName = (id: string) => {
+  const normalizedId = id.replace(/\\/g, '/');
+  const marker = '/node_modules/';
+  const markerIndex = normalizedId.lastIndexOf(marker);
+
+  if (markerIndex === -1) {
+    return '';
+  }
+
+  const packagePath = normalizedId.slice(markerIndex + marker.length);
+  const [scopeOrName, packageName] = packagePath.split('/');
+
+  if (scopeOrName?.startsWith('@') && packageName) {
+    return `${scopeOrName}/${packageName}`;
+  }
+
+  return scopeOrName || '';
+};
+
+const matchesPackageGroup = (id: string, packageNames: string[]) => {
+  const packageName = getPackageName(id);
+
+  return packageNames.some((name) => {
+    if (name.endsWith('/*')) {
+      const prefix = name.slice(0, -2);
+      return packageName === prefix || packageName.startsWith(`${prefix}/`);
+    }
+
+    if (name.endsWith('-*')) {
+      const prefix = name.slice(0, -2);
+      return packageName === prefix || packageName.startsWith(`${prefix}-`);
+    }
+
+    return packageName === name;
+  });
+};
+
 export default defineConfig({
   plugins: [
     react(),
@@ -60,28 +97,141 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (
-              id.includes('react') ||
-              id.includes('react-dom') ||
-              id.includes('react-router-dom')
-            ) {
-              return 'vendor';
-            }
-            if (id.includes('@radix-ui') || id.includes('lucide-react')) {
-              return 'ui';
-            }
-            if (id.includes('recharts')) {
-              return 'charts';
-            }
-            if (id.includes('date-fns') || id.includes('xlsx')) {
-              return 'utils';
-            }
-            if (id.includes('dexie')) {
-              return 'db';
-            }
-            return 'libs';
+          if (!id.includes('node_modules')) {
+            return;
           }
+
+          if (
+            matchesPackageGroup(id, [
+              '@radix-ui/*',
+              '@floating-ui/*',
+              'react-remove-scroll',
+              'react-remove-scroll-bar',
+              'react-focus-scope',
+              'react-slot',
+              'react-collection',
+              'react-context',
+              'react-primitive',
+              'react-use-measure',
+              'react-popper',
+              'aria-*',
+              'lucide-react',
+            ])
+          ) {
+            return 'ui';
+          }
+
+          if (
+            matchesPackageGroup(id, [
+              'react',
+              'react-dom',
+              'react-router-dom',
+              'react-is',
+              'scheduler',
+              'use-sync-external-store',
+              'loose-envify',
+              'js-tokens',
+              'react-*',
+              'cmdk',
+              '@tanstack/*',
+              'react-hot-toast',
+              'react-hook-form',
+              'react-dropzone',
+              'dexie-react-hooks',
+            ])
+          ) {
+            return 'react-vendor';
+          }
+
+          if (matchesPackageGroup(id, ['dexie'])) {
+            return 'db';
+          }
+
+          if (matchesPackageGroup(id, ['@supabase/*'])) {
+            return 'supabase';
+          }
+
+          if (
+            matchesPackageGroup(id, [
+              'recharts',
+              'd3-*',
+              'victory-*',
+              'internmap',
+              'delaunator',
+              'robust-predicates',
+            ])
+          ) {
+            return 'charts';
+          }
+
+          if (matchesPackageGroup(id, ['framer-motion', 'motion-*', 'framesync'])) {
+            return 'motion';
+          }
+
+          if (
+            matchesPackageGroup(id, [
+              '@react-pdf/*',
+              'pdfkit',
+              'fontkit',
+              'yoga-layout',
+              'linebreak',
+              'unicode-*',
+            ])
+          ) {
+            return 'pdf';
+          }
+
+          if (
+            matchesPackageGroup(id, [
+              '@zxing/*',
+              'browser-image-compression',
+              'jpeg-js',
+              'pngjs',
+              'utif',
+            ])
+          ) {
+            return 'media';
+          }
+
+          if (matchesPackageGroup(id, ['date-fns'])) {
+            return 'date';
+          }
+
+          if (
+            matchesPackageGroup(id, [
+              'xlsx',
+              'cfb',
+              'codepage',
+              'crc-32',
+              'ssf',
+              'frac',
+              'wmf',
+              'parse-svg-path',
+            ])
+          ) {
+            return 'excel';
+          }
+
+          if (matchesPackageGroup(id, ['zod', '@hookform/resolvers'])) {
+            return 'validation';
+          }
+
+          if (matchesPackageGroup(id, ['zustand'])) {
+            return 'state';
+          }
+
+          if (
+            matchesPackageGroup(id, [
+              'clsx',
+              'tailwind-merge',
+              'class-variance-authority',
+              'tailwindcss-animate',
+            ])
+          ) {
+            return 'styling';
+          }
+
+          return 'vendor';
         },
       },
     },

@@ -18,6 +18,7 @@ import { id } from 'date-fns/locale';
 import { Download } from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
+import { sameEntityId, toEntityIdString } from '@/lib/entityId';
 
 export default function PurchaseReportPage() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -43,7 +44,8 @@ export default function PurchaseReportPage() {
 
   // Calculate summary by Supplier
   const supplierSummary = filteredPOs.reduce((acc: SupplierSummaryItem[], po) => {
-    const supplierName = suppliers.find((s) => s.id === po.supplier_id)?.name || 'Unknown';
+    const supplierName =
+      suppliers.find((s) => sameEntityId(s.id, po.supplier_id))?.name || 'Unknown';
     const existing = acc.find((item) => item.name === supplierName);
     if (existing) {
       existing.total += po.total_amount;
@@ -61,7 +63,7 @@ export default function PurchaseReportPage() {
       filteredPOs.map((po) => ({
         'No. PO': po.po_number,
         Tanggal: format(po.order_date, 'dd/MM/yyyy'),
-        Supplier: suppliers.find((s) => s.id === po.supplier_id)?.name,
+        Supplier: suppliers.find((s) => sameEntityId(s.id, po.supplier_id))?.name,
         Total: po.total_amount,
         Status: po.status,
       })),
@@ -205,7 +207,10 @@ export default function PurchaseReportPage() {
                 </TableRow>
               ) : (
                 filteredPOs.map((po) => (
-                  <TableRow key={po.id} className="hover:bg-slate-50/50 transition-colors group">
+                  <TableRow
+                    key={toEntityIdString(po.id)}
+                    className="group transition-colors hover:bg-slate-50/50"
+                  >
                     <TableCell className="px-6 py-4 font-mono text-xs font-bold text-slate-500">
                       {po.po_number}
                     </TableCell>
@@ -213,7 +218,7 @@ export default function PurchaseReportPage() {
                       {format(po.order_date, 'dd MMM yyyy', { locale: id })}
                     </TableCell>
                     <TableCell className="font-bold text-slate-800">
-                      {suppliers.find((s) => s.id === po.supplier_id)?.name}
+                      {suppliers.find((s) => sameEntityId(s.id, po.supplier_id))?.name}
                     </TableCell>
                     <TableCell className="text-center">
                       <span

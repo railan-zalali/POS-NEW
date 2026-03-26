@@ -1,5 +1,8 @@
 import { db } from './dexie';
 import type { User, Role } from './schema';
+import { coerceEntityId, sameEntityId } from '@/lib/entityId';
+import { hashPin, verifyPin as verifyPinHash } from '@/lib/security/pin';
+import { queueDeleteInstruction } from '@/lib/supabase/deleteOutbox';
 
 export const userRepository = {
   async getAll() {
@@ -10,33 +13,58 @@ export const userRepository = {
     return await db.users.where('username').equals(username).first();
   },
 
-  async getById(id: string) {
-    return await db.users.get(id);
+  async getById(id: string | number) {
+    return await db.users.get(coerceEntityId(id));
   },
 
   async create(user: Omit<User, 'id'>) {
+    const pin = user.pin?.trim() ? await hashPin(user.pin) : undefined;
     return await db.users.add({
       ...user,
+      ...(pin ? { pin } : {}),
       created_at: new Date(),
       updated_at: new Date(),
       sync_status: 'pending',
     } as User);
   },
 
-  async update(id: string, updates: Partial<User>) {
-    return await db.users.update(id, {
-      ...updates,
+  async update(id: string | number, updates: Partial<User>) {
+    const nextUpdates = { ...updates } as Partial<User>;
+
+    if (typeof nextUpdates.pin === 'string') {
+      if (nextUpdates.pin.trim() === '') {
+        delete nextUpdates.pin;
+      } else {
+        nextUpdates.pin = await hashPin(nextUpdates.pin);
+      }
+    }
+
+    return await db.users.update(coerceEntityId(id), {
+      ...nextUpdates,
       updated_at: new Date(),
       sync_status: 'pending',
     });
   },
 
-  async delete(id: string) {
-    return await db.users.delete(id);
+  async delete(id: string | number) {
+    const resolvedId = coerceEntityId(id);
+    if (resolvedId == null) {
+      return;
+    }
+
+    return await db.transaction('rw', [db.users, db.app_settings], async () => {
+      await queueDeleteInstruction('users', resolvedId);
+      return await db.users.delete(resolvedId);
+    });
   },
 
-  async getRoleById(roleId: string) {
-    return await db.roles.get(roleId);
+  async getRoleById(roleId: string | number) {
+    const resolvedRoleId = coerceEntityId(roleId);
+    if (resolvedRoleId == null) {
+      return undefined;
+    }
+
+    return await db.roles.get(resolvedRoleId);
   },
 
   async getAllRoles() {
@@ -52,21 +80,31 @@ export const userRepository = {
     } as Role);
   },
 
-  async updateRole(id: string, updates: Partial<Role>) {
-    return await db.roles.update(id, {
+  async updateRole(id: string | number, updates: Partial<Role>) {
+    return await db.roles.update(coerceEntityId(id), {
       ...updates,
       updated_at: new Date(),
       sync_status: 'pending',
     });
   },
 
-  async deleteRole(id: string) {
+  async deleteRole(id: string | number) {
+    const resolvedId = coerceEntityId(id);
+    if (resolvedId == null) {
+      return;
+    }
     // Optional: check if users are assigned to this role before deleting
-    const usersCount = await db.users.where('role_id').equals(id).count();
+    const usersCount = (await db.users.toArray()).filter((user) =>
+      sameEntityId(user.role_id, resolvedId),
+    ).length;
     if (usersCount > 0) {
       throw new Error('Role sedang digunakan oleh pengguna lain.');
     }
-    return await db.roles.delete(id);
+
+    return await db.transaction('rw', [db.roles, db.app_settings], async () => {
+      await queueDeleteInstruction('roles', resolvedId);
+      return await db.roles.delete(resolvedId);
+    });
   },
 
   async seedDefaultData() {
@@ -130,5 +168,9 @@ export const userRepository = {
         is_active: true,
       });
     }
+  },
+
+  async verifyPin(storedPin: string | undefined, candidatePin: string) {
+    return await verifyPinHash(storedPin, candidatePin);
   },
 };

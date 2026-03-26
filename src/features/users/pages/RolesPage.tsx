@@ -101,7 +101,7 @@ export default function RolesPage() {
         toast({ title: 'Berhasil', description: 'Role baru berhasil dibuat.' });
       }
       setIsDialogOpen(false);
-    } catch (_error) {
+    } catch {
       toast({
         title: 'Gagal',
         description: 'Terjadi kesalahan saat menyimpan data.',

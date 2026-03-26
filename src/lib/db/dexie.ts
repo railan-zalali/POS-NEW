@@ -21,6 +21,7 @@ import type {
   CustomerPayment,
   PurchaseReturn,
   PurchaseReturnItem,
+  TransactionSnapshot,
 } from './schema';
 
 export class TokoTaniDB extends Dexie {
@@ -45,11 +46,11 @@ export class TokoTaniDB extends Dexie {
   customer_payments!: Table<CustomerPayment>;
   purchase_returns!: Table<PurchaseReturn>;
   purchase_return_items!: Table<PurchaseReturnItem>;
-
+  transaction_snapshots!: Table<TransactionSnapshot>;
   constructor() {
     super('TokoTaniDB');
 
-    this.version(3).stores({
+    this.version(4).stores({
       products: '++id, code, name, category_id, is_active, sync_status, updated_at',
       product_units: '++id, product_id, is_base_unit, barcode, sync_status',
       product_stocks:
@@ -58,7 +59,7 @@ export class TokoTaniDB extends Dexie {
       suppliers: '++id, code, name, is_active, sync_status',
       customers: '++id, code, name, phone, nik, is_active, sync_status',
       sales_transactions:
-        '++id, invoice_number, customer_id, transaction_date, status, sync_status, updated_at',
+        '++id, invoice_number, customer_id, transaction_date, payment_method, status, sync_status, updated_at',
       sales_transaction_items: '++id, transaction_id, product_id, sync_status',
       users: '++id, username, role_id, is_active, sync_status',
       roles: '++id, name, sync_status',
@@ -73,6 +74,7 @@ export class TokoTaniDB extends Dexie {
       customer_payments: '++id, payment_number, customer_id, payment_date, sync_status',
       purchase_returns: '++id, return_number, supplier_id, return_date, status, sync_status',
       purchase_return_items: '++id, return_id, product_id, sync_status',
+      transaction_snapshots: '++id, transaction_id, snapshot, stockBefore, timestamp, sync_status',
     });
   }
 }
